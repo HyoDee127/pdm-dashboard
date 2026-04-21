@@ -1905,7 +1905,7 @@
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">현재 상태</div><div class="cfg-val">Ctrl+P 차단 + CSS @media print로 화면 숨김 = <strong>반대로 돼있음</strong> (인쇄 차단, 다운 허용)</div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">변경 방향</div><div class="cfg-val">① Ctrl+P 차단 해제 ② PDF.js 다운로드 버튼 숨김 ③ 우클릭/Ctrl+S 차단 유지 ④ @media print CSS 정상화</div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">소스 위치</div><div class="cfg-val"><code>PDM: mozilla_pdf_js.jsp</code> (Ctrl+P 60-84줄, CSS 36-40줄, PDF.js 버튼 181-290줄)</div></div>
-            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">POC 진행중</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val" style="color:#2563EB; font-weight:600;">POC 구현 완료 (04/21)</div></div>
           </div>
         </div>
 
@@ -1916,7 +1916,7 @@
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">가능 근거</div><div class="cfg-val"><strong>PDFBox 1.8.2 이미 lib에 존재.</strong> ApiController에서 파일 → Base64 인코딩 사이에 PDFBox로 워터마크 삽입 가능</div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">삽입 정보</div><div class="cfg-val">출력자 ID/이름, 출력 일시, 사용 목적(선택), 기한(선택) — 투명도 조절 가능</div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">소스 위치</div><div class="cfg-val"><code>PDM: ApiController.java drawPdfViewer()</code> 548-549줄 (FileUtils.readFileToByteArray → Base64 사이)</div></div>
-            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">POC 진행중</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val" style="color:#2563EB; font-weight:600;">POC 구현 완료 (04/21)</div></div>
           </div>
         </div>
 
@@ -1927,7 +1927,7 @@
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">변경 방향</div><div class="cfg-val">제품코드 전달 → BOM 전체의 도면 파일을 한 번에 반환하는 <strong>일괄 API 신규 개발</strong></div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">ERP 쪽</div><div class="cfg-val"><code>PPC0300_M01.xfdl.js</code> btn_print_1_onclick (1316줄) — REPRODERNO 수집 로직 활용</div></div>
             <div class="cfg-row"><div class="cfg-key" style="width:100px;">PDM 쪽</div><div class="cfg-val"><code>ApiController.java</code> download.do 참조하여 BOM 일괄 엔드포인트 설계</div></div>
-            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">API 설계 진행중</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val" style="color:#2563EB; font-weight:600;">POC 구현 완료 (04/21)</div></div>
           </div>
         </div>
 
@@ -1990,12 +1990,187 @@
         </div>
 
         <div style="margin-top:20px; padding:14px 18px; background:#DCFCE7; border-left:4px solid #16A34A; border-radius:8px; font-size:12px; color:#14532d; line-height:1.8;">
-          <strong>기술검토 핵심 판정 (04/20 업데이트)</strong>: <strong>4개 과제 모두 기술적으로 구현 가능 확인.</strong><br/>
+          <strong>기술검토 핵심 판정 (04/20 → 04/21 POC 완료)</strong>: <strong>4개 과제 모두 기술적으로 구현 가능 확인 → POC 실제 동작 검증 완료.</strong><br/>
           - 인쇄제어/워터마크/BOM수집: 기존 라이브러리+소스 수정으로 구현 가능 (기존 판정 유지)<br/>
           - <strong>합본 출력(과제②): 선행 과제 해결됨.</strong> ClipReport의 <code>exportForPDF.jsp</code>로 PDF 파일 추출 확인 (서버 파일 저장/다운로드/인라인뷰 3모드). <code>ClipReportMergeExport</code>로 규격표 간 합본도 가능. OPO0140 단가합의서에서 동일 패턴(UI 없이 PDF→base64) 이미 운영 검증 완료.<br/>
           - <strong>합본 구현 경로</strong>: ClipReport로 부품규격표 PDF 서버 저장 → PDM에서 도면 PDF 수집 → PDFBox(1.8.2)로 [규격표+도면] 순서 merge → 워터마크 삽입 → 출력/뷰어 서빙<br/>
-          - <strong>다음 단계</strong>: POC 개발 착수 — ERP(PPC0300)에서 부품규격표+도면 합본 프로토타입 구현
+          - <strong>04/21 POC 결과</strong>: 신규 3파일 + 수정 2파일로 전체 파이프라인 동작 확인. 아래 "POC 구현 결과" 섹션 참조
         </div>
+
+        <!-- ──── POC 구현 결과 ──── -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#f59e0b;"></div> POC 구현 결과 (04/21 완료)</div>
+
+        <div style="margin-bottom:20px; padding:14px 18px; background:#FEF3C7; border-left:4px solid #F59E0B; border-radius:8px; font-size:12px; color:#78350f; line-height:1.8;">
+          <strong>POC 완료 현황</strong>: 4개 과제 모두 실제 동작하는 프로토타입 구현 완료.<br/>
+          - 신규 파일 3개 생성, 기존 파일 2개 수정<br/>
+          - 테스트 페이지(<code>/api/mergePrintTestPage.do</code>)에서 즉시 검증 가능<br/>
+          - 아래 각 과제별 AS-IS → TO-BE 변경 상세 및 동작 액션 기록
+        </div>
+
+        <!-- 과제④ POC -->
+        <div class="cfg-card" style="margin-bottom:16px; border-left:3px solid #6366f1;">
+          <div class="cfg-head"><h4>과제 ④ 인쇄 허용 + 다운로드 차단 — POC 구현</h4><span class="badge" style="background:#DBEAFE; color:#2563EB;">구현 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row" style="background:#FEF2F2;"><div class="cfg-key" style="width:120px; color:#DC2626;">AS-IS (기존)</div><div class="cfg-val">
+              <code>mozilla_pdf_js.jsp</code>에서 Ctrl+P 차단 + <code>@media print { body { display:none } }</code>로 화면 숨김<br/>
+              → <strong>인쇄 불가능, 다운로드는 허용</strong> (정반대 동작)
+            </div></div>
+            <div class="cfg-row" style="background:#F0FDF4;"><div class="cfg-key" style="width:120px; color:#16A34A;">TO-BE (변경)</div><div class="cfg-val">
+              <code>mozilla_pdf_js_secure.jsp</code> <strong>신규 생성</strong> — 보안 강화 PDF 뷰어<br/>
+              ① 다운로드/열기/북마크 버튼 <code>display:none !important</code> 완전 숨김<br/>
+              ② Ctrl+P, Ctrl+S 키보드 이벤트 <code>preventDefault()</code> 차단<br/>
+              ③ 우클릭 컨텍스트메뉴 차단<br/>
+              ④ <strong>커스텀 인쇄 버튼</strong>만 제공 — <code>securePrint()</code> 함수<br/>
+              ⑤ 클립보드 주기적 초기화
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">핵심 로직</div><div class="cfg-val">
+              <code>securePrint()</code>: <code>@media print</code> 차단 스타일을 일시 해제(<code>style.disabled=true</code>) → <code>window.print()</code> 호출 → <code>onafterprint</code>에서 자동 복구<br/>
+              → 커스텀 버튼으로만 인쇄 가능, 브라우저 기본 인쇄/다운로드 경로 모두 차단
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">신규 파일</div><div class="cfg-val"><code>WebContent/WEB-INF/jsp/api/mozilla_pdf_js_secure.jsp</code> (22.9KB)</div></div>
+          </div>
+        </div>
+
+        <!-- 과제③ POC -->
+        <div class="cfg-card" style="margin-bottom:16px; border-left:3px solid #6366f1;">
+          <div class="cfg-head"><h4>과제 ③ 워터마크 자동 삽입 — POC 구현</h4><span class="badge" style="background:#DBEAFE; color:#2563EB;">구현 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row" style="background:#FEF2F2;"><div class="cfg-key" style="width:120px; color:#DC2626;">AS-IS (기존)</div><div class="cfg-val">
+              <code>ApiController.java:249</code> <code>isSecured=false</code> (2017년 비활성화)<br/>
+              워터마크 삽입 코드 자체가 없음. 현업이 무료 프로그램으로 수동 워터마크 찍는 중
+            </div></div>
+            <div class="cfg-row" style="background:#F0FDF4;"><div class="cfg-key" style="width:120px; color:#16A34A;">TO-BE (변경)</div><div class="cfg-val">
+              <code>WatermarkUtil.java</code> <strong>신규 생성</strong> — PDFBox 1.8.2 기반 워터마크 유틸리티<br/>
+              ① <code>addWatermark(File, userId, userNm, purpose)</code> — 파일 기반 워터마크<br/>
+              ② <code>addWatermark(byte[], userId, userNm, purpose)</code> — 메모리 PDF 워터마크 (합본 후 적용)<br/>
+              ③ <code>mergePdfs(List&lt;File&gt;)</code> / <code>mergePdfBytes(List&lt;byte[]&gt;)</code> — PDF 합본
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">워터마크 형식</div><div class="cfg-val">
+              <code>userId | userNm | yyyy-MM-dd HH:mm | purpose</code><br/>
+              예: <code>hyoseop_kim | 김효섭 | 2026-04-21 10:33 | 합본출력</code><br/>
+              색상 RGB(200,200,200) 연한 회색, 30도 대각선, 페이지당 2개 위치(중앙 상단·하단)
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">삽입 시점</div><div class="cfg-val">
+              <code>ApiController</code>에서 파일 읽기(<code>readFileToByteArray</code>) → <strong>워터마크 삽입</strong> → Base64 인코딩 → 뷰어 전달<br/>
+              워터마크 실패 시에도 원본 도면은 정상 표시 (예외 catch)
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">신규 파일</div><div class="cfg-val"><code>src/main/java/com/fursys/pdm/util/WatermarkUtil.java</code> (5.5KB, 174줄)</div></div>
+          </div>
+        </div>
+
+        <!-- 과제① POC -->
+        <div class="cfg-card" style="margin-bottom:16px; border-left:3px solid #6366f1;">
+          <div class="cfg-head"><h4>과제 ① BOM 기반 도면 자동 수집 — POC 구현</h4><span class="badge" style="background:#DBEAFE; color:#2563EB;">구현 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row" style="background:#FEF2F2;"><div class="cfg-key" style="width:120px; color:#DC2626;">AS-IS (기존)</div><div class="cfg-val">
+              ERP <code>gfn_web_dwgno()</code>가 품목 <strong>1건씩</strong> PDM/NPDM 호출 → 뷰어 <strong>개별 팝업</strong><br/>
+              품목 10개면 팝업 10개. 합본 불가. 사용자가 하나하나 인쇄해야 함
+            </div></div>
+            <div class="cfg-row" style="background:#F0FDF4;"><div class="cfg-key" style="width:120px; color:#16A34A;">TO-BE (변경)</div><div class="cfg-val">
+              <code>/api/mergePrint.do</code>에서 <code>items</code> 파라미터로 <strong>다수 품목 일괄 수집</strong><br/>
+              ① <code>storeCd</code>(ERP 저장소) → <code>factoryCd</code>(PDM 공장코드) 자동 변환<br/>
+              ② <code>items="ITEMCD1:ITEMCOL1,ITEMCD2:ITEMCOL2,..."</code> 파싱<br/>
+              ③ 각 품목별 <code>stDrawDao.getItemDrawFile()</code>로 도면 파일 조회<br/>
+              ④ 3가지 파일명 규칙 순회 탐색 (원본명 → DRAWNO-REVn.확장자 → FILENO.확장자)
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">변경 파일</div><div class="cfg-val"><code>ApiController.java</code> — <code>mergePrint()</code> 메서드 신규 추가 (+379줄)</div></div>
+          </div>
+        </div>
+
+        <!-- 과제② POC -->
+        <div class="cfg-card" style="margin-bottom:16px; border-left:3px solid #6366f1;">
+          <div class="cfg-head"><h4>과제 ② 부품규격표 + 도면 합본 — POC 구현</h4><span class="badge" style="background:#DBEAFE; color:#2563EB;">구현 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row" style="background:#FEF2F2;"><div class="cfg-key" style="width:120px; color:#DC2626;">AS-IS (기존)</div><div class="cfg-val">
+              ClipReport가 부품규격표만 단독 PDF 출력. 도면은 별도 PDM 뷰어로 조회.<br/>
+              <strong>규격표와 도면을 합쳐서 보는 방법 자체가 없음</strong> — 현업이 직접 인쇄 후 수작업 합본
+            </div></div>
+            <div class="cfg-row" style="background:#F0FDF4;"><div class="cfg-key" style="width:120px; color:#16A34A;">TO-BE (변경)</div><div class="cfg-val">
+              <code>/api/mergePrint.do</code> (POST) — 합본 출력 전체 파이프라인<br/>
+              ① ERP에서 <code>specPdf</code>(규격표 PDF, base64 인코딩) + <code>items</code>(품목 목록) POST 전송<br/>
+              ② PDM: 규격표 base64 디코딩 → byte[]<br/>
+              ③ PDM: items 파싱 → 각 품목 도면 파일 자동 수집<br/>
+              ④ PDM: <code>WatermarkUtil.mergePdfBytes()</code>로 [규격표 + 도면1 + 도면2 + ...] 합본<br/>
+              ⑤ PDM: <code>WatermarkUtil.addWatermark()</code>로 워터마크 삽입<br/>
+              ⑥ PDM: Base64 인코딩 → <code>mozilla_pdf_js_secure.jsp</code>로 보안 뷰어 반환
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">API 스펙</div><div class="cfg-val">
+              <code>POST /api/mergePrint.do</code><br/>
+              파라미터: <code>storeCd</code>, <code>items</code>(쉼표 구분), <code>userId</code>, <code>ssoKey</code>, <code>specPdf</code>(base64, 선택)<br/>
+              응답: 보안 PDF 뷰어 (인쇄만 가능)
+            </div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">변경 파일</div><div class="cfg-val">
+              <code>ApiController.java</code> — 4개 메서드 신규 (<code>mergePrint</code>, <code>viewSecure</code>, <code>mergePrintTest</code>, <code>mergePrintTestPage</code>)<br/>
+              <code>pdm-mvc.xml</code> — 인터셉터 제외 4개 URL 추가
+            </div></div>
+          </div>
+        </div>
+
+        <!-- 동작 액션 흐름 -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#8b5cf6;"></div> POC 동작 액션 (사용자 시나리오)</div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>시나리오 A: 단일 도면 보안 뷰어</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">① 호출</div><div class="cfg-val">ERP에서 도면 보기 클릭 → <code>GET /api/view-secure.do?drawNo=1304-687&drawRev=0&userId=xxx&ssoKey=xxx</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">② 인증</div><div class="cfg-val">PDM: ssoKey 검증 → 사용자 USE_YN/ROLE_YN 확인</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">③ 처리</div><div class="cfg-val">도면 파일 로드 → <strong>PDFBox 워터마크 삽입</strong> (출력자/일시) → Base64 인코딩</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">④ 표시</div><div class="cfg-val"><strong>보안 뷰어</strong> 렌더링: 도면 열람 가능, 다운로드 불가, 커스텀 인쇄 버튼만 노출</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑤ 인쇄</div><div class="cfg-val">사용자가 "인쇄" 클릭 → <code>@media print</code> 일시 해제 → <code>window.print()</code> → 인쇄 후 자동 복구</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑥ 이력</div><div class="cfg-val"><code>T_DRAW_FILE_LOG</code>에 "VS,(referer),(IP)" 자동 기록</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>시나리오 B: 부품규격표 + 도면 합본 출력 (최종 목표)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">① 클릭</div><div class="cfg-val">ERP 공정진행정보(PPC0300)에서 <strong>"부품규격표+도면 출력"</strong> 버튼 클릭</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">② 규격표</div><div class="cfg-val">ERP: ClipReport로 부품규격표 PDF 생성 → base64 인코딩</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">③ 전송</div><div class="cfg-val">ERP → <code>POST /api/mergePrint.do</code> (규격표 base64 + 품목 목록 + SSO 인증)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">④ 수집</div><div class="cfg-val">PDM: storeCd→factoryCd 변환 → 각 품목별 도면 파일 <strong>자동 수집</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑤ 합본</div><div class="cfg-val">PDM: <code>PDFBox mergePdfBytes()</code> → [규격표 + 도면1 + 도면2 + ...] <strong>단일 PDF</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑥ 워터</div><div class="cfg-val">PDM: <code>addWatermark()</code> → "userId | 이름 | 2026-04-21 10:33 | 합본출력" 삽입</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑦ 표시</div><div class="cfg-val"><strong>보안 뷰어</strong>로 합본 PDF 프리뷰 → 인쇄만 가능, 다운로드 차단</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">⑧ 이력</div><div class="cfg-val">각 도면마다 <code>T_DRAW_FILE_LOG</code>에 "MP,(IP)" 자동 기록</div></div>
+          </div>
+        </div>
+
+        <!-- 신규/변경 파일 총정리 -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#0891b2;"></div> POC 신규·변경 파일 총정리</div>
+        <div class="cfg-card">
+          <div class="cfg-body" style="font-size:11px;">
+            <div class="cfg-row" style="background:#EFF6FF;"><div class="cfg-key" style="width:60px; color:#2563EB;">NEW</div><div class="cfg-val"><code>src/main/java/com/fursys/pdm/util/WatermarkUtil.java</code> (5.5KB) — PDF 워터마크 삽입 + 합본 유틸리티</div></div>
+            <div class="cfg-row" style="background:#EFF6FF;"><div class="cfg-key" style="width:60px; color:#2563EB;">NEW</div><div class="cfg-val"><code>WebContent/WEB-INF/jsp/api/mozilla_pdf_js_secure.jsp</code> (22.9KB) — 보안 PDF 뷰어 (다운로드 차단, 커스텀 인쇄)</div></div>
+            <div class="cfg-row" style="background:#EFF6FF;"><div class="cfg-key" style="width:60px; color:#2563EB;">NEW</div><div class="cfg-val"><code>WebContent/WEB-INF/jsp/api/merge_print_test.jsp</code> (7.7KB) — 합본 출력 테스트 페이지 (개발 전용)</div></div>
+            <div class="cfg-row" style="background:#FFFBEB;"><div class="cfg-key" style="width:60px; color:#D97706;">MOD</div><div class="cfg-val"><code>src/main/java/com/fursys/pdm/api/ApiController.java</code> (+379줄) — 4개 API 메서드 추가 (view-secure, mergePrint, mergePrintTest, mergePrintTestPage)</div></div>
+            <div class="cfg-row" style="background:#FFFBEB;"><div class="cfg-key" style="width:60px; color:#D97706;">MOD</div><div class="cfg-val"><code>WebContent/WEB-INF/pdm-mvc.xml</code> — 인터셉터 제외 URL 4개 추가 (ERP 직접 호출이므로 컨트롤러에서 SSO 처리)</div></div>
+            <div class="cfg-row" style="background:#FFFBEB;"><div class="cfg-key" style="width:60px; color:#D97706;">MOD</div><div class="cfg-val"><code>ApiController.java</code> Base64 변경: <code>org.apache.catalina.util.Base64</code> → <code>java.util.Base64</code> (JDK 표준으로 전환)</div></div>
+          </div>
+        </div>
+
+        <!-- 프로덕션 전환 체크리스트 -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#dc2626;"></div> 프로덕션 전환 시 체크리스트</div>
+        <div class="cfg-card">
+          <div class="cfg-body" style="font-size:12px;">
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">테스트 엔드포인트 삭제: <code>/api/mergePrintTest.do</code>, <code>/api/mergePrintTestPage.do</code>, <code>merge_print_test.jsp</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">파일 탐색 로직 공통 유틸로 리팩터링 (view.do와 중복 코드 제거)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val"><code>specPdf</code> 사이즈 검증 로직 추가 (50MB 제한)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">대용량 PDF 합본 시 메모리/타임아웃 대책 수립</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">출력 사유 수집 UI/API 구현 (설계 원칙: 1클릭 수집)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val"><code>T_DRAW_FILE_LOG</code> INSERT 권한 운영 DB에서 확인</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">워터마크 실패 시 처리 정책 확정 (현재: 무시하고 원본 표시)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:30px;">☐</div><div class="cfg-val">ERP PPC0300 Bridge JSP 개발 (ClipReport → specPdf 생성 → PDM API 호출)</div></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; padding:14px 18px; background:#DBEAFE; border-left:4px solid #3B82F6; border-radius:8px; font-size:12px; color:#1e3a5f; line-height:1.8;">
+          <strong>POC 판정 (04/21)</strong>: <strong>4개 과제 모두 실제 동작 확인 완료.</strong><br/>
+          - 보안 뷰어: 다운로드 완전 차단 + 커스텀 인쇄만 허용 → <strong>보안 요건 충족</strong><br/>
+          - 워터마크: PDFBox로 자동 삽입, 수동 작업 제거 → <strong>현업 부담 해소</strong><br/>
+          - 합본 출력: 규격표+도면 단일 PDF 합본 성공 → <strong>핵심 기능 검증 완료</strong><br/>
+          - <strong>다음 단계</strong>: ERP 측 Bridge JSP 개발 → 실제 PPC0300에서 End-to-End 테스트
+        </div>
+
       </div>
 
       <!-- ════════ 4단계: 설계 ════════ -->
