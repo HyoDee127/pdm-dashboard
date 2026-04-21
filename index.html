@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDM 개선 프로젝트 - 산출물 대시보드</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #f7f8fa; color: #222; }
+
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 280px; background: #fff; border-right: 1px solid #e5e7eb; position: fixed; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; z-index: 100; transition: transform 0.25s ease; }
+  .sidebar.collapsed { transform: translateX(-280px); }
+  .sidebar-toggle { position: fixed; top: 12px; left: 12px; z-index: 200; width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #666; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: left 0.25s ease; }
+  .sidebar-toggle.shifted { left: 292px; }
+  @media print { .sidebar, .sidebar-toggle { display: none !important; } .main { margin-left: 0 !important; } }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+  .sidebar-brand { padding: 28px 24px 20px; border-bottom: 1px solid #e5e7eb; }
+  .sidebar-brand .sub { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #6366f1; text-transform: uppercase; margin-bottom: 10px; }
+  .sidebar-brand h1 { font-size: 18px; font-weight: 700; color: #111; line-height: 1.4; }
+  .sidebar-brand .desc { font-size: 12px; color: #999; margin-top: 6px; }
+
+  .phase-group { padding: 8px 10px; }
+  .phase-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #bbb; padding: 16px 14px 6px; }
+  .phase-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; color: #666; transition: all 0.15s; margin-bottom: 1px; user-select: none; }
+  .phase-item:hover { background: #f3f4f6; color: #333; }
+  .phase-item.active { background: #eef2ff; color: #4338ca; font-weight: 500; }
+  .phase-item .num { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; border: 1.5px solid #ddd; color: #aaa; background: #fff; }
+  .phase-item.active .num { border-color: #6366f1; color: #6366f1; background: #eef2ff; }
+  .phase-item.done .num { border-color: #059669; color: #fff; background: #059669; }
+  .phase-item .phase-badge { margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .badge-done { background: #ecfdf5; color: #059669; }
+  .badge-progress { background: #fffbeb; color: #d97706; }
+  .badge-planned { background: #f3f4f6; color: #999; }
+
+  .sub-items { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+  .sub-items.open { max-height: 500px; }
+  .sub-item { padding: 7px 14px 7px 54px; font-size: 12px; color: #888; cursor: pointer; border-radius: 8px; margin: 0 10px; transition: all 0.15s; }
+  .sub-item:hover { color: #555; background: #f9fafb; }
+  .sub-item.active { color: #6366f1; background: #eef2ff; font-weight: 500; }
+
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid #e5e7eb; margin-top: auto; }
+  .sidebar-footer .info { font-size: 11px; color: #aaa; line-height: 1.8; }
+  .sidebar-footer .info strong { color: #666; }
+
+  /* ── Main ── */
+  .main { margin-left: 280px; flex: 1; min-height: 100vh; transition: margin-left 0.25s ease; }
+  .main.expanded { margin-left: 0; }
+
+  .topbar { padding: 16px 40px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(247,248,250,0.92); backdrop-filter: blur(12px); z-index: 50; }
+  .breadcrumb { font-size: 13px; color: #aaa; }
+  .breadcrumb span { color: #333; font-weight: 500; }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.4); }
+  .status-text { font-size: 12px; color: #999; }
+
+  .content { padding: 36px 40px; max-width: 1100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 32px; }
+  .page-header h2 { font-size: 28px; font-weight: 700; color: #111; margin-bottom: 6px; }
+  .page-header p { font-size: 14px; color: #888; line-height: 1.6; }
+
+  /* ── Components ── */
+
+  /* Phase Hero */
+  .phase-hero { background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%); border: 1px solid #e0e7ff; border-radius: 16px; padding: 36px; margin-bottom: 28px; }
+  .phase-hero .phase-num { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #6366f1; margin-bottom: 8px; }
+  .phase-hero h2 { font-size: 26px; font-weight: 700; color: #1e1b4b; margin-bottom: 6px; }
+  .phase-hero p { font-size: 13px; color: #666; line-height: 1.7; max-width: 700px; }
+  .phase-hero .phase-date { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 600; color: #6366f1; background: rgba(99,102,241,0.08); padding: 4px 14px; border-radius: 8px; }
+
+  /* Progress */
+  .progress-card { background: #fff; border-radius: 16px; padding: 28px; border: 1px solid #e5e7eb; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .progress-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+  .progress-bar-bg { background: #e5e7eb; border-radius: 8px; height: 12px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 8px; }
+  .progress-bar.green { background: linear-gradient(90deg, #059669, #34d399); }
+  .progress-stats { display: flex; justify-content: space-between; font-size: 12px; color: #999; margin-top: 10px; }
+  .progress-pct { font-size: 42px; font-weight: 900; color: #059669; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-1px); }
+  .card-label { font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; }
+  .card h3 { font-size: 14px; font-weight: 600; color: #222; margin-bottom: 5px; line-height: 1.4; }
+  .card p { font-size: 12px; color: #888; line-height: 1.7; }
+  .card-tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; margin-top: 10px; }
+
+  .s-done { border-left: 3px solid #059669; }
+  .s-done .card-label { color: #059669; }
+  .s-done .card-tag { background: #ecfdf5; color: #059669; }
+  .s-prog { border-left: 3px solid #d97706; }
+  .s-prog .card-label { color: #d97706; }
+  .s-prog .card-tag { background: #fffbeb; color: #d97706; }
+  .s-todo { border-left: 3px solid #dc2626; }
+  .s-todo .card-label { color: #dc2626; }
+  .s-todo .card-tag { background: #fef2f2; color: #dc2626; }
+
+  /* Section Titles */
+  .sec-title { font-size: 15px; font-weight: 700; color: #333; margin: 28px 0 14px; display: flex; align-items: center; gap: 10px; }
+  .sec-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Arch Grid */
+  .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .arch-box { background: #fff; border-radius: 12px; padding: 22px; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .arch-box h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; color: #222; }
+  .arch-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  .tag { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; margin: 3px 3px 3px 0; }
+  .tag-blue { background: #eff6ff; color: #2563eb; }
+  .tag-green { background: #ecfdf5; color: #059669; }
+  .tag-amber { background: #fffbeb; color: #d97706; }
+  .tag-red { background: #fef2f2; color: #dc2626; }
+  .tag-gray { background: #f3f4f6; color: #999; text-decoration: line-through; }
+  .tag-purple { background: #faf5ff; color: #7c3aed; }
+
+  /* Tables */
+  .dtable { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .dtable th { text-align: left; font-size: 11px; font-weight: 600; color: #999; padding: 12px 16px; background: #fafbfc; border-bottom: 1px solid #e5e7eb; }
+  .dtable td { padding: 12px 16px; font-size: 12px; border-bottom: 1px solid #f3f4f6; color: #555; }
+  .dtable tr:last-child td { border-bottom: none; }
+  .dtable td strong { color: #222; font-weight: 600; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+  .b-ok { background: #ecfdf5; color: #059669; }
+  .b-warn { background: #fffbeb; color: #d97706; }
+  .b-off { background: #fef2f2; color: #dc2626; }
+
+  /* Config Blocks */
+  .cfg { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .cfg-head { padding: 14px 20px; background: #fafbfc; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+  .cfg-head h4 { font-size: 13px; font-weight: 600; color: #333; }
+  .cfg-body { padding: 16px 20px; }
+  .cfg-row { display: flex; padding: 7px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
+  .cfg-row:last-child { border-bottom: none; }
+  .cfg-key { width: 180px; color: #999; font-weight: 500; flex-shrink: 0; }
+  .cfg-val { color: #333; }
+  .cfg-val code { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Consolas', 'Courier New', monospace; }
+  code.new { background: #ecfdf5; color: #059669; }
+  code.old { background: #fef2f2; color: #dc2626; text-decoration: line-through; margin-right: 6px; }
+  code.neutral { background: #eef2ff; color: #6366f1; }
+
+  /* Timeline */
+  .tl-wrap { background: #fff; border-radius: 12px; padding: 28px; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .tl { position: relative; padding-left: 32px; }
+  .tl::before { content:''; position: absolute; left: 10px; top: 8px; bottom: 8px; width: 2px; background: #e5e7eb; }
+  .tl-item { position: relative; margin-bottom: 28px; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-item::before { content:''; position: absolute; left: -26px; top: 6px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid #059669; background: #fff; }
+  .tl-item.done::before { background: #059669; }
+  .tl-item.now::before { background: #d97706; border-color: #d97706; box-shadow: 0 0 0 5px rgba(217,119,6,0.12); }
+  .tl-item.later::before { border-color: #ddd; }
+  .tl-step { font-size: 10px; font-weight: 700; color: #059669; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .tl-item.later .tl-step { color: #bbb; }
+  .tl-title { font-size: 15px; font-weight: 600; color: #222; margin-bottom: 4px; }
+  .tl-desc { font-size: 12px; color: #888; line-height: 1.7; }
+
+  /* Roadmap */
+  .roadmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .rm-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .rm-card .rm-num { font-size: 28px; font-weight: 900; color: #ddd; margin-bottom: 6px; }
+  .rm-card.active .rm-num { color: #6366f1; }
+  .rm-card.done .rm-num { color: #059669; }
+  .rm-card h4 { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 3px; }
+  .rm-card.active h4, .rm-card.done h4 { color: #222; }
+  .rm-card p { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+  .rm-card .rm-date { font-size: 10px; color: #bbb; margin-bottom: 6px; }
+  .rm-card.done .rm-date, .rm-card.active .rm-date { color: #888; }
+
+  /* Empty State */
+  .empty-state { text-align: center; padding: 80px 40px; }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 18px; font-weight: 600; color: #888; margin-bottom: 8px; }
+  .empty-state p { font-size: 13px; color: #aaa; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <button class="sidebar-toggle shifted" onclick="toggleSidebar()" title="메뉴 접기/펼치기">&#9776;</button>
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sub">Fursys PDM</div>
+      <h1>도면관리 시스템<br>개선 프로젝트</h1>
+      <div class="desc">전체 프로젝트 산출물 대시보드</div>
+    </div>
+
+    <div class="phase-group">
+      <div class="phase-label">프로젝트 단계</div>
+
+      <div class="phase-item active" onclick="navPhase(this,'overview')">
+        <div class="num">O</div> 프로젝트 개요
+      </div>
+
+      <div class="phase-item done" onclick="toggleSub(this,'sub1'); navPhase(this,'p1-status')">
+        <div class="num">1</div> 개발환경 구축
+        <span class="phase-badge badge-done">완료</span>
+      </div>
+      <div id="sub1" class="sub-items open">
+        <div class="sub-item active" onclick="navSub(this,'p1-status')">셋팅 현황</div>
+        <div class="sub-item" onclick="navSub(this,'p1-arch')">시스템 구조</div>
+        <div class="sub-item" onclick="navSub(this,'p1-config')">변경 설정 내역</div>
+        <div class="sub-item" onclick="navSub(this,'p1-timeline')">진행 이력</div>
+      </div>
+
+      <div class="phase-item done" onclick="toggleSub(this,'sub2'); navPhase(this,'p2-main')">
+        <div class="num">2</div> 현행 시스템 분석
+        <span class="phase-badge badge-done">완료</span>
+      </div>
+      <div id="sub2" class="sub-items">
+        <div class="sub-item" onclick="navSub(this,'p2-main')">분석 개요</div>
+        <div class="sub-item" onclick="navSub(this,'p2-features')">기능 목록</div>
+        <div class="sub-item" onclick="navSub(this,'p2-issues')">문제점 도출</div>
+      </div>
+
+      <div class="phase-item" onclick="toggleSub(this,'sub3'); navPhase(this,'p3-main')">
+        <div class="num">3</div> 요구사항 분석
+        <span class="phase-badge badge-progress">진행중</span>
+      </div>
+      <div id="sub3" class="sub-items">
+        <div class="sub-item" onclick="navSub(this,'p3-main')">문제 정의</div>
+        <div class="sub-item" onclick="navSub(this,'p3-bible')">★ AS-IS / TO-BE 바이블</div>
+        <div class="sub-item" onclick="navSub(this,'p3-functional')">AS-IS 업무 흐름</div>
+        <div class="sub-item" onclick="navSub(this,'p3-nonfunc')">TO-BE 요구사항</div>
+        <div class="sub-item" onclick="navSub(this,'p3-interview')">현업 인터뷰 질문지</div>
+      </div>
+
+      <div class="phase-item" onclick="toggleSub(this,'sub4'); navPhase(this,'p4-main')">
+        <div class="num">4</div> 설계
+        <span class="phase-badge badge-progress">진행중</span>
+      </div>
+      <div id="sub4" class="sub-items">
+        <div class="sub-item" onclick="navSub(this,'p4-techreview')">★ 기술개발검토</div>
+        <div class="sub-item" onclick="navSub(this,'p4-main')">설계 개요</div>
+        <div class="sub-item" onclick="navSub(this,'p4-ui')">화면 설계</div>
+        <div class="sub-item" onclick="navSub(this,'p4-db')">DB 설계</div>
+        <div class="sub-item" onclick="navSub(this,'p4-api')">인터페이스 설계</div>
+      </div>
+
+      <div class="phase-item" onclick="toggleSub(this,'sub5'); navPhase(this,'p5-main')">
+        <div class="num">5</div> 개발
+        <span class="phase-badge badge-planned">예정</span>
+      </div>
+      <div id="sub5" class="sub-items">
+        <div class="sub-item" onclick="navSub(this,'p5-main')">개발 개요</div>
+        <div class="sub-item" onclick="navSub(this,'p5-log')">개발 이력</div>
+      </div>
+
+      <div class="phase-item" onclick="toggleSub(this,'sub6'); navPhase(this,'p6-main')">
+        <div class="num">6</div> 테스트
+        <span class="phase-badge badge-planned">예정</span>
+      </div>
+      <div id="sub6" class="sub-items">
+        <div class="sub-item" onclick="navSub(this,'p6-main')">테스트 계획</div>
+        <div class="sub-item" onclick="navSub(this,'p6-result')">테스트 결과</div>
+      </div>
+
+      <div class="phase-item" onclick="navPhase(this,'p7-main')">
+        <div class="num">7</div> 배포 및 안정화
+        <span class="phase-badge badge-planned">예정</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="info">
+        <strong>담당자</strong> 김효섭<br>
+        <strong>시작일</strong> 2026-04-08<br>
+        <strong>도구</strong> Claude Code + Figma MCP
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb" id="breadcrumb">PDM 개선 프로젝트 &rsaquo; <span>프로젝트 개요</span></div>
+      <div class="topbar-right">
+        <div class="status-dot"></div>
+        <div class="status-text">Tomcat 기동중 | localhost:8083</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ════════ 프로젝트 개요 ════════ -->
+      <div id="page-overview" class="page active">
+        <div class="page-header">
+          <h2>프로젝트 개요</h2>
+          <p>퍼시스 PDM 도면관리 시스템 개선 프로젝트의 전체 로드맵과 목표</p>
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#fef2f2; color:#dc2626;">AS</div> 현행 (AS-IS)</h3>
+            <p style="font-size:12px; color:#888; line-height:1.7; margin-bottom:12px;">도면 배포 공식 경로 분절. 제품기술팀이 수동 허브. EP-DRIVE 비공식 백도어. NPDM 배포 기능 미사용. 카톡/메일이 실질 배포 채널.</p>
+            <span class="tag tag-amber">제품기술팀 병목</span><span class="tag tag-amber">EP-DRIVE 백도어</span><span class="tag tag-amber">카톡/메일 우회</span><span class="tag tag-amber">NPDM 미사용</span>
+          </div>
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#ecfdf5; color:#059669;">TO</div> 목표 (TO-BE)</h3>
+            <p style="font-size:12px; color:#888; line-height:1.7; margin-bottom:12px;">NPDM 배포 기능 활성화 + 트랙 A(제조/검사용 출력) + 트랙 B(외주 도면 배포). 다운 없이 시스템으로 해결. 제품기술팀은 원본 관리 전용.</p>
+            <span class="tag tag-green">NPDM 배포 활성화</span><span class="tag tag-green">ERP 조회/출력</span><span class="tag tag-green">워터마크+이력 자동</span><span class="tag tag-green">EP-DRIVE 축소</span>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 프로젝트 로드맵</div>
+        <div class="roadmap">
+          <div class="rm-card done">
+            <div class="rm-num">01</div>
+            <h4>개발환경 구축</h4>
+            <p>IDE, 서버, DB, Claude 도구</p>
+            <div class="rm-date">04/08 ~ 04/13</div>
+            <span class="badge badge-done">완료</span>
+          </div>
+          <div class="rm-card done">
+            <div class="rm-num">02</div>
+            <h4>현행 시스템 분석</h4>
+            <p>기능 파악, 문제점, PIMS 감사</p>
+            <div class="rm-date">04/09 ~ 04/13</div>
+            <span class="badge badge-done">완료</span>
+          </div>
+          <div class="rm-card active">
+            <div class="rm-num">03</div>
+            <h4>요구사항 분석</h4>
+            <p>충주 인터뷰 완료, NPDM 발견, 바이블 작성</p>
+            <div class="rm-date">04/14 ~ 진행중</div>
+            <span class="badge badge-progress">진행중</span>
+          </div>
+          <div class="rm-card">
+            <div class="rm-num">04</div>
+            <h4>설계</h4>
+            <p>화면/DB/인터페이스</p>
+            <div class="rm-date">미정</div>
+            <span class="badge badge-planned">예정</span>
+          </div>
+          <div class="rm-card">
+            <div class="rm-num">05</div>
+            <h4>개발</h4>
+            <p>기능 구현</p>
+            <div class="rm-date">미정</div>
+            <span class="badge badge-planned">예정</span>
+          </div>
+          <div class="rm-card">
+            <div class="rm-num">06</div>
+            <h4>테스트</h4>
+            <p>기능/통합/UAT</p>
+            <div class="rm-date">미정</div>
+            <span class="badge badge-planned">예정</span>
+          </div>
+          <div class="rm-card">
+            <div class="rm-num">07</div>
+            <h4>배포 및 안정화</h4>
+            <p>운영 반영, 모니터링</p>
+            <div class="rm-date">미정</div>
+            <span class="badge badge-planned">예정</span>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 기본 정보</div>
+        <div class="cfg">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">시스템명</div><div class="cfg-val">PDM 도면관리 시스템 (Product Data Management)</div></div>
+            <div class="cfg-row"><div class="cfg-key">회사</div><div class="cfg-val">퍼시스 (FURSYS)</div></div>
+            <div class="cfg-row"><div class="cfg-key">프레임워크</div><div class="cfg-val">Spring MVC 3.2.2 / Servlet 2.5</div></div>
+            <div class="cfg-row"><div class="cfg-key">화면 기술</div><div class="cfg-val">JSP + JSTL + jQuery 1.10 + EasyUI</div></div>
+            <div class="cfg-row"><div class="cfg-key">빌드 도구</div><div class="cfg-val" style="color:#dc2626;">없음 (WEB-INF/lib에 JAR 직접 포함)</div></div>
+            <div class="cfg-row"><div class="cfg-key">인증</div><div class="cfg-val">SSO (현재 우회 처리 - userId 하드코딩)</div></div>
+            <div class="cfg-row"><div class="cfg-key">담당 개발자</div><div class="cfg-val">김효섭</div></div>
+            <div class="cfg-row"><div class="cfg-key">프로젝트 기간</div><div class="cfg-val">2026-04-08 ~ (진행중)</div></div>
+            <div class="cfg-row"><div class="cfg-key">로컬 접속</div><div class="cfg-val">http://localhost:8083 (Tomcat 7 / Smart Tomcat)</div></div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#d97706;"></div> 주요 변경 이력</div>
+        <div class="cfg-card">
+          <div class="cfg-body" style="font-size:11px; line-height:1.8;">
+            <div class="cfg-row"><div class="cfg-key" style="width:90px; color:#999;">04-17</div><div class="cfg-val"><strong style="color:#DC2626;">NPDM 외주배포 기능 미사용 발견.</strong> 트랙 B를 "ERP 견적요청시스템 신규 설계" → "NPDM 기능 활성화"로 방향 전환. 제품기술팀에 상품견적 도면배포 역할 추가 (4팀 병렬).</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:90px; color:#999;">04-15</div><div class="cfg-val">충주 현업 인터뷰 결과 반영. AS-IS/TO-BE 바이블 작성. 문제 5가지 정의, 2트랙 TO-BE 설계, EP-DRIVE 백도어 확인.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:90px; color:#999;">04-13</div><div class="cfg-val">Tomcat 레거시 잔재 제거, EP 개발DB 분리, SSO 우회 고도화, Claude DB 조회 도구 구축, 시스템 구조도 생성.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:90px; color:#999;">04-13</div><div class="cfg-val">PIMS→ERP dev 전환. ITEM_ACNT 컬럼 오매핑 이슈 발견(Sybase→MSSQL 마이그레이션 실수 추정). MATACNT/STATUS 필터 수정.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:90px; color:#999;">04-09</div><div class="cfg-val">프로젝트 최초 생성. IntelliJ CE + JDK 1.8 + Tomcat 7 개발환경 구축 완료. 산출물 대시보드 초판.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 1단계: 셋팅 현황 ════════ -->
+      <div id="page-p1-status" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 01</div>
+          <h2>개발환경 구축</h2>
+          <p>레거시 PDM 시스템을 IntelliJ CE + JDK 1.8 + Tomcat 7 환경에서 로컬 구동하기 위한 환경 셋팅</p>
+          <div class="phase-date">04/08 ~ 04/09 (2일) | 완료</div>
+        </div>
+
+        <div class="progress-card">
+          <div class="progress-top">
+            <div>
+              <div style="font-size:14px; font-weight:600; color:#222;">전체 진행률</div>
+              <div style="font-size:12px; color:#999; margin-top:2px;">총 13개 작업 모두 완료</div>
+            </div>
+            <div class="progress-pct">100%</div>
+          </div>
+          <div class="progress-bar-bg"><div class="progress-bar green" style="width:100%"></div></div>
+          <div class="progress-stats"><span>완료 13건</span><span>2026-04-09 완료</span></div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 완료된 작업 (13건)</div>
+        <div class="cards">
+          <div class="card s-done"><div class="card-label">IDE 설정</div><h3>JDK 1.8 및 언어 수준 1.6 설정</h3><p>misc.xml에서 프로젝트 SDK와 언어 수준을 레거시 호환 가능하도록 설정</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">IDE 설정</div><h3>모듈 및 종속요소 등록</h3><p>WEB-INF/lib JAR 37개 및 servlet-api 등록</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">서버</div><h3>Tomcat 7.0.109 설치</h3><p>C:\development\apache-tomcat-7.0.109 압축 해제</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">서버</div><h3>Smart Tomcat 플러그인</h3><p>IntelliJ CE용 Tomcat 구동 플러그인 설치</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">서버</div><h3>실행 설정 생성</h3><p>배포 경로: WebContent, 컨텍스트: /, 포트: 8080</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">설정</div><h3>업로드 경로 Windows 변경</h3><p>C.java UPLOAD_PATH를 로컬 Windows 경로로 변경</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">DB</div><h3>PDM 메인 DB 연결</h3><p>MSSQL 10.0.1.184:1672/pdm 개발 DB 연결</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">DB</div><h3>ERP DataSource 비활성화</h3><p>미사용 Sybase ERP 데이터소스 주석처리</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">설정</div><h3>동기화 스케줄러 비활성화</h3><p>SyncService @Scheduled 주석처리로 에러 방지</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">인증</div><h3>SSO 우회 코드 확인</h3><p>AccountController userId 하드코딩 우회 확인</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">서버</div><h3>Tomcat 기동 및 접속 성공</h3><p>localhost:8080/account/sso.do 정상 접속 확인</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">DB</div><h3>EP/PIMS DB 접속 확인</h3><p>외부망 접속 불가 확인. 빈 정의 유지(lazy), 해당 기능만 제한</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">테스트</div><h3>주요 기능 동작 확인</h3><p>SSO 로그인 → 메인 화면 진입 정상 동작 확인</p><span class="card-tag">완료</span></div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 추가 셋팅 (2026-04-13)</div>
+        <div class="cards">
+          <div class="card s-done"><div class="card-label">서버</div><h3>Tomcat 레거시 잔재 제거</h3><p>Smart Tomcat conf/Catalina/localhost에 남아있던 FursysErp.xml, ROOT.xml 삭제. 기동 시 FursysERP 컨텍스트가 같이 로딩되던 문제 해결</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">DB</div><h3>EP 개발 DB 분리</h3><p>pdm-database.xml에 운영 EP(10.0.1.155) 주석처리 + 개발 EP(10.0.1.100:1433) 추가. 환경별 DataSource 블록 구조 도입</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">인증</div><h3>SSO 개발 우회 고도화</h3><p>AccountController sso() 에서 userId 파라미터 우선 + 기본값 hyoseop_kim 적용. SSO_KEY를 AccountDao.validateKey 백도어값 "1234"로 변경하여 JSP 링크 만료 문제 해결</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">로깅</div><h3>디버깅 로그 레벨 조정</h3><p>log4j에 com.fursys.pdm + Spring JDBC + DispatcherServlet DEBUG 로거 추가. SQL 쿼리/요청 매핑 콘솔 출력</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">도구</div><h3>Claude Code용 DB 직접 조회 도구</h3><p>scripts/db.sh (sqlcmd + Python UTF-8 변환 래퍼) + .db.env 환경파일. PDM/EP/PIMS 3개 DB를 DB_TARGET 환경변수로 전환. CLAUDE.md에 사용법 기록</p><span class="card-tag">완료</span></div>
+          <div class="card s-done"><div class="card-label">산출물</div><h3>산출물 대시보드 업데이트</h3><p>Phase 2 문제점에 배포 리스크 3건 추가, Phase 7에 배포 전 원복 체크리스트(7개 파일) 구성</p><span class="card-tag">완료</span></div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#7C3AED;"></div> 시스템 구조도 (FigJam)</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>Claude Code 기반 개발환경 전체 구조</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;">
+              지금까지 함께 셋팅한 모든 구조를 한 장으로 정리. Claude Code를 중심에 두고 4개 MSSQL DB(PDM/EP/ERP DEV/ERP PROD) 조회 파이프라인, 로컬 개발환경(IntelliJ + Smart Tomcat + Tomcat 7), PDM_WEB 런타임, 산출물 출력 흐름이 한눈에 보임.
+            </p>
+            <a href="https://www.figma.com/online-whiteboard/create-diagram/36c18d24-7d27-4ad7-ae48-ba3168292dfd?utm_source=other&utm_content=edit_in_figjam&oai_id=&request_id=48c032dc-aa39-4e32-8a02-60c56b72e5a1"
+               target="_blank"
+               style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#7C3AED; color:#fff; text-decoration:none; border-radius:8px; font-size:13px; font-weight:600;">
+              FigJam에서 구조도 열기 (v2) &rsaquo;
+            </a>
+            <p style="font-size:11px; color:#999; margin-top:10px;">
+              생성일: 2026-04-13 (v2 개선판) | 계층형 Top-Down 레이아웃, edge 교차 최소화 | 클릭 시 FigJam에서 편집 가능
+            </p>
+            <details style="margin-top:10px;">
+              <summary style="font-size:11px; color:#999; cursor:pointer;">v1 초판 (edge 꼬임 이슈)</summary>
+              <a href="https://www.figma.com/online-whiteboard/create-diagram/99c91ca1-a058-4c0f-b8e0-e4d06a170833?utm_source=other&utm_content=edit_in_figjam&oai_id=&request_id=57325ec3-9b5a-480e-b395-f51b6a870fdc" target="_blank" style="font-size:11px; color:#6366f1;">v1 열기</a>
+            </details>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#6366f1;"></div> DB 직접 조회 도구 구성도</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>scripts/db.sh — 실행 흐름</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">진입점</div><div class="cfg-val"><code>bash scripts/db.sh "SELECT ..."</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">① 환경 로드</div><div class="cfg-val"><code>.db.env</code> 파일 source → 3개 DB(PDM/EP/PIMS) 접속정보 환경변수로 로드. <code>DB_TARGET</code> 으로 대상 선택 (기본 pdm)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">② 경로 변환</div><div class="cfg-val"><code>cygpath -w</code> 로 git-bash unix 경로를 Windows 경로로 변환. sqlcmd.exe가 Windows 네이티브 프로세스라 필요</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">③ 쿼리 실행</div><div class="cfg-val"><code>sqlcmd -u</code> (UCS-2 LE 출력) + <code>-s "|"</code> (파이프 구분자) + <code>-W</code> (공백제거) 로 tmpfile에 저장</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">④ 인코딩 변환</div><div class="cfg-val">Python 3로 UTF-16 → UTF-8 재인코딩. <code>sys.stdout.buffer.write(...)</code> 로 cp949 콘솔에서도 한글 정상 출력</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">⑤ 정리</div><div class="cfg-val">tmpfile trap 자동 삭제. 비밀번호는 프로세스 인자로 노출되지만 bash history 외엔 영속 없음</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 1단계: 시스템 구조 ════════ -->
+      <div id="page-p1-arch" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 01</div>
+          <h2>시스템 구조</h2>
+          <p>PDM 웹 애플리케이션의 기술 스택, DB 연결 구조, 컨트롤러 구조</p>
+          <div class="phase-date">04/08 ~ 04/09 (2일) | 완료</div>
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#eff6ff; color:#2563eb;">F</div> 프론트엔드</h3>
+            <span class="tag tag-blue">JSP + JSTL</span><span class="tag tag-blue">jQuery 1.10</span><span class="tag tag-blue">EasyUI</span><span class="tag tag-blue">Servlet 2.5</span>
+          </div>
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#ecfdf5; color:#059669;">B</div> 백엔드</h3>
+            <span class="tag tag-green">Spring MVC 3.2.2</span><span class="tag tag-green">JDK 1.8</span><span class="tag tag-green">Tomcat 7</span><span class="tag tag-amber">빌드 도구 없음</span>
+          </div>
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#faf5ff; color:#7c3aed;">D</div> 개발 환경</h3>
+            <span class="tag tag-blue">IntelliJ CE</span><span class="tag tag-blue">Smart Tomcat</span><span class="tag tag-purple">Figma MCP</span><span class="tag tag-purple">Claude Code</span>
+          </div>
+          <div class="arch-box">
+            <h3><div class="arch-icon" style="background:#fffbeb; color:#d97706;">A</div> 인증</h3>
+            <span class="tag tag-gray">SSO 인증 (주석처리)</span><span class="tag tag-gray">세션 체크 (주석처리)</span><span class="tag tag-amber">하드코딩 우회</span>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> 데이터베이스 연결 현황</div>
+        <table class="dtable">
+          <tr><th>이름</th><th>종류</th><th>호스트</th><th>DB</th><th>용도</th><th>상태</th></tr>
+          <tr><td><strong>PDM 메인</strong></td><td>MSSQL</td><td>10.0.1.184:1672</td><td>pdm</td><td>도면/사용자 핵심 데이터</td><td><span class="badge b-ok">연결됨</span></td></tr>
+          <tr><td><strong>EP 포털</strong></td><td>MSSQL</td><td>14.63.219.169:1672</td><td>portal</td><td>사내 포털 연동</td><td><span class="badge b-warn">접속 불가</span></td></tr>
+          <tr><td><strong>PIMS</strong></td><td>Sybase</td><td>192.9.201.203:4006</td><td>ipbfdb</td><td>제품정보 관리</td><td><span class="badge b-warn">접속 불가</span></td></tr>
+          <tr><td><strong>ERP</strong></td><td>Sybase</td><td>192.9.201.203:4006</td><td>isbfdb</td><td>ERP 연동 (미사용)</td><td><span class="badge b-off">비활성화</span></td></tr>
+        </table>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 주요 컨트롤러 구조</div>
+        <table class="dtable">
+          <tr><th>컴포넌트</th><th>경로</th><th>역할</th><th>의존 DB</th></tr>
+          <tr><td><strong>AccountController</strong></td><td>/account/*</td><td>로그인 / SSO 처리</td><td>PDM</td></tr>
+          <tr><td><strong>ChangeController</strong></td><td>/change/*</td><td>설계변경 관리</td><td>PDM + EP</td></tr>
+          <tr><td><strong>StDrawController</strong></td><td>/stDraw/*</td><td>표준품 도면</td><td>PDM</td></tr>
+          <tr><td><strong>CtDrawController</strong></td><td>/ctDraw/*</td><td>주문품 도면</td><td>PDM</td></tr>
+          <tr><td><strong>GtDrawController</strong></td><td>/gtDraw/*</td><td>G코드 도면</td><td>PDM + EP</td></tr>
+          <tr><td><strong>MtDrawController</strong></td><td>/mtDraw/*</td><td>부자재 도면</td><td>PDM</td></tr>
+          <tr><td><strong>SyncService</strong></td><td>스케줄러 (비활성화)</td><td>사용자 동기화</td><td>EP</td></tr>
+        </table>
+      </div>
+
+      <!-- ════════ 1단계: 변경 설정 ════════ -->
+      <div id="page-p1-config" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 01</div>
+          <h2>변경 설정 내역</h2>
+          <p>로컬 환경 구축을 위해 변경한 파일 및 설정값 상세 기록</p>
+          <div class="phase-date">04/08 ~ 04/09 (2일) | 완료</div>
+        </div>
+
+        <div class="cfg">
+          <div class="cfg-head"><h4>C.java - 업로드 경로 변경</h4><span class="badge b-ok">변경 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">파일 경로</div><div class="cfg-val"><code class="neutral">src/main/java/com/fursys/pdm/C.java</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">UPLOAD_PATH</div><div class="cfg-val"><code class="old">/home/www/pdm/WebContent/_upload</code> <code class="new">C:/development/PDM_WEB/WebContent/_upload</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">변경 사유</div><div class="cfg-val">리눅스 서버 경로를 로컬 Windows 경로로 변경</div></div>
+          </div>
+        </div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>pdm-database.xml - 데이터베이스 설정</h4><span class="badge b-ok">변경 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">파일 경로</div><div class="cfg-val"><code class="neutral">WebContent/WEB-INF/pdm-database.xml</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">PDM DB 호스트</div><div class="cfg-val"><code class="old">210.122.8.213:1672</code> <code class="new">10.0.1.184:1672</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">PDM DB명</div><div class="cfg-val"><code class="new">pdm</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">PDM DB 계정</div><div class="cfg-val"><code class="new">hyoseop_kim / Fursys!@#</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">ERP DataSource</div><div class="cfg-val"><span class="badge b-off">주석처리 (미사용)</span></div></div>
+            <div class="cfg-row"><div class="cfg-key">EP/PIMS</div><div class="cfg-val"><span class="badge b-warn">빈 유지 (DAO 참조, lazy 연결)</span></div></div>
+          </div>
+        </div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>SyncService.java - 스케줄러 비활성화</h4><span class="badge b-ok">변경 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">파일 경로</div><div class="cfg-val"><code class="neutral">src/.../account/SyncService.java</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">변경 내용</div><div class="cfg-val"><code class="old">@Scheduled(cron="0 * * * * ?")</code> 주석처리</div></div>
+            <div class="cfg-row"><div class="cfg-key">변경 사유</div><div class="cfg-val">EP DB 접속 불가로 매분 에러 로그 방지</div></div>
+          </div>
+        </div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>AccountController.java - SSO 우회 (기존)</h4><span class="badge b-warn">기존 상태 유지</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">현재 상태</div><div class="cfg-val">SSO 검증 주석처리, userId = "euihyun_nam" 하드코딩</div></div>
+            <div class="cfg-row"><div class="cfg-key">비고</div><div class="cfg-val">기존 개발자가 적용해둔 상태 - 변경 없음</div></div>
+          </div>
+        </div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>misc.xml - IntelliJ 프로젝트 설정</h4><span class="badge b-ok">변경 완료</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">Project SDK</div><div class="cfg-val"><code class="old">JDK 17</code> <code class="new">1.8</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">Language Level</div><div class="cfg-val"><code class="old">JDK_17</code> <code class="new">JDK_1_6</code></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 1단계: 진행 이력 ════════ -->
+      <div id="page-p1-timeline" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 01</div>
+          <h2>진행 이력</h2>
+          <p>환경 구축 과정의 주요 판단, 문제 해결, 의사결정 근거 기록</p>
+          <div class="phase-date">04/08 ~ 04/09 (2일) | 완료</div>
+        </div>
+
+        <div class="tl-wrap">
+          <div class="tl">
+            <div class="tl-item done"><div class="tl-step">04/08 - IDE 이관</div><div class="tl-title">Eclipse에서 IntelliJ CE로 전환</div><div class="tl-desc">IntelliJ CE 사용 확인. Web Facet, Artifact 등 Ultimate 전용 기능 사용 불가 → Smart Tomcat 플러그인으로 대체 결정</div></div>
+            <div class="tl-item done"><div class="tl-step">04/08 - 런타임</div><div class="tl-title">Tomcat 6 → Tomcat 7.0.109 업그레이드</div><div class="tl-desc">원본 Tomcat 6은 너무 구형. 7.x는 Servlet 2.5 호환 유지하므로 코드 변경 없이 구동 가능</div></div>
+            <div class="tl-item done"><div class="tl-step">04/09 - 데이터베이스</div><div class="tl-title">운영 DB에서 개발 DB로 분리</div><div class="tl-desc">운영 DB(210.122.8.213) 대신 사내 개발 DB(10.0.1.184)에 개인 계정으로 접속. DB명 pdm_test → pdm 수정</div></div>
+            <div class="tl-item done"><div class="tl-step">04/09 - 외부 DB</div><div class="tl-title">EP/PIMS 빈 유지, ERP 제거, 스케줄러 비활성화</div><div class="tl-desc">EP/PIMS를 주석처리하면 DAO 빈 실패로 앱 기동 불가. BasicDataSource는 lazy 연결이므로 빈 유지. ERP는 미사용 확인 후 주석처리</div></div>
+            <div class="tl-item done"><div class="tl-step">04/09 - 컨텍스트</div><div class="tl-title">Context Path /pdm → / (루트) 변경</div><div class="tl-desc">모든 JSP가 루트 기준 절대 경로 사용. /pdm이면 404 발생 → 루트로 변경하여 해결</div></div>
+            <div class="tl-item done"><div class="tl-step">04/09 - 완료</div><div class="tl-title">첫 접속 성공 및 환경 구축 완료</div><div class="tl-desc">localhost:8080/account/sso.do 정상 접속 확인. EP/PIMS는 외부망 접속 불가 확인, 해당 기능만 제한. 개발환경 구축 완료 처리</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 2단계: 현행 시스템 분석 ════════ -->
+      <div id="page-p2-main" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 02</div>
+          <h2>현행 시스템 분석</h2>
+          <p>PDM 시스템의 전체 메뉴 구조, 화면 흐름, DB 테이블, 외부 연동을 분석</p>
+          <div class="phase-date">04/09 ~ 진행중</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 전체 메뉴 구조</div>
+        <table class="dtable">
+          <tr><th>메뉴</th><th>경로</th><th>컨트롤러</th><th>핵심 기능</th><th>의존 DB</th></tr>
+          <tr><td><strong>설계변경</strong></td><td>/change/*</td><td>ChangeController</td><td>요청서/통보서 조회, 도면 적용 관리</td><td style="color:#dc2626;">PDM + <strong>EP 포털</strong></td></tr>
+          <tr><td><strong>표준품 도면</strong></td><td>/stDraw/*</td><td>StDrawController</td><td>카테고리 브라우징, 도면 CRUD, REV 관리, 파일 업로드</td><td>PDM</td></tr>
+          <tr><td><strong>주문품 도면</strong></td><td>/ctDraw/*</td><td>CtDrawController</td><td>BOM 기반 도면 매핑, 임시 업로드, 자동 선택</td><td style="color:#d97706;">PDM + <strong>PIMS</strong></td></tr>
+          <tr><td><strong>부자재 도면</strong></td><td>/mtDraw/*</td><td>MtDrawController</td><td>자재 검색, 도면 업로드/삭제</td><td style="color:#d97706;">PDM + <strong>PIMS</strong></td></tr>
+          <tr><td><strong>G코드</strong></td><td>/gtDraw/*</td><td>GtDrawController</td><td>브랜드별 G코드 관리, ZIP 업로드, 전자결재 연계</td><td style="color:#dc2626;">PDM + <strong>EP 포털</strong></td></tr>
+          <tr><td><strong>API/뷰어</strong></td><td>/api/*</td><td>ApiController</td><td>PDF 보안뷰어, 파일 다운로드, G코드 상세</td><td>PDM</td></tr>
+        </table>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> 외부 DB 의존성 맵</div>
+        <div class="arch-grid">
+          <div class="arch-box" style="border-left:3px solid #dc2626;">
+            <h3><div class="arch-icon" style="background:#fef2f2; color:#dc2626;">EP</div> EP 포털 (14.63.219.169:1672)</h3>
+            <p style="font-size:12px; color:#888; margin-bottom:10px;">설계변경 전자결재 워크플로우 조회 전용. 로컬에서 접속 불가</p>
+            <div><span class="tag tag-red">WF_FLOW (결재건)</span><span class="tag tag-red">WF_APPR_LINE (결재라인)</span><span class="tag tag-red">WF_CUSTOM_DATA (커스텀필드)</span><span class="tag tag-red">TT_USER (포털사용자)</span><span class="tag tag-red">TT_DEPT (포털부서)</span></div>
+            <p style="font-size:11px; color:#dc2626; margin-top:8px; font-weight:600;">영향: 설계변경 메뉴 전체 조회 불가, G코드 browse에서 전자결재명 미표시</p>
+          </div>
+          <div class="arch-box" style="border-left:3px solid #d97706;">
+            <h3><div class="arch-icon" style="background:#fffbeb; color:#d97706;">PI</div> PIMS (192.9.201.203:4006)</h3>
+            <p style="font-size:12px; color:#888; margin-bottom:10px;">제품 BOM 및 자재 정보 조회. Sybase DB. 로컬에서 접속 불가</p>
+            <div><span class="tag tag-amber">s_iteminf (아이템)</span><span class="tag tag-amber">s_mathed (자재)</span><span class="tag tag-amber">p_stdbom (표준BOM)</span></div>
+            <p style="font-size:11px; color:#d97706; margin-top:8px; font-weight:600;">영향: 주문품 도면 검색 불가, 부자재 도면 검색 불가</p>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> PDM 핵심 테이블 구조</div>
+        <table class="dtable">
+          <tr><th>테이블</th><th>용도</th><th>주요 컬럼</th><th>사용처</th></tr>
+          <tr><td><strong>T_DRAW</strong></td><td>도면 마스터</td><td>DRAW_NO, DRAW_TYPE, CATE_NO, PART_NM, ITEM_NM</td><td>전체</td></tr>
+          <tr><td><strong>T_DRAW_REV</strong></td><td>도면 리비전</td><td>DRAW_NO, DRAW_REV, DESIGN_NM, DESIGN_DT, REMARK</td><td>전체</td></tr>
+          <tr><td><strong>T_DRAW_FILE</strong></td><td>도면 파일</td><td>FILE_NO, FILE_TYPE, FILE_NM, FILE_EXT, PATH</td><td>전체</td></tr>
+          <tr><td><strong>T_DRAW_CATE</strong></td><td>카테고리 (트리)</td><td>CATE_NO, CATE_NM, ROOT, PARENT, CATE_NAV</td><td>표준품, G코드</td></tr>
+          <tr><td><strong>T_DRAW_APPLY</strong></td><td>도면 유효본 적용</td><td>DRAW_NO, DRAW_REV, FACTORY_CD, APPLY_YN, APPLY_DT</td><td>표준품, G코드, 설계변경</td></tr>
+          <tr><td><strong>T_ITEM_BOM</strong></td><td>BOM 구조</td><td>PITEM_CD, CITEM_CD, ITEM_NM, ITEM_ACNT</td><td>주문품</td></tr>
+          <tr><td><strong>T_ITEM_DRAW</strong></td><td>아이템-도면 매핑</td><td>ITEM_CD, ITEM_COL, DRAW_NO, DRAW_REV</td><td>주문품</td></tr>
+          <tr><td><strong>T_USER</strong></td><td>사용자</td><td>USER_ID, USER_NM, DEPT_CD, ROLE_CD</td><td>전체</td></tr>
+          <tr><td><strong>T_ROLE</strong></td><td>권한 역할</td><td>ROLE_CD, ST, CT, MT, GT</td><td>전체</td></tr>
+          <tr><td><strong>T_CODE</strong></td><td>공통 코드</td><td>CODE, NAME, PREFIX (X01=공장, X02=작업장, X03=도면종류, X04=파일타입)</td><td>전체</td></tr>
+        </table>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 권한 체계</div>
+        <table class="dtable">
+          <tr><th>권한코드</th><th>대상</th><th>S (관리)</th><th>W (쓰기)</th><th>R (읽기)</th><th>X/G (없음)</th></tr>
+          <tr><td><strong>ST</strong></td><td>표준품 도면</td><td>전체 기능</td><td>등록/수정/삭제</td><td>다운로드만</td><td>보기만</td></tr>
+          <tr><td><strong>CT</strong></td><td>주문품 도면</td><td>전체 기능</td><td>등록/수정/삭제</td><td>-</td><td>보기만</td></tr>
+          <tr><td><strong>MT</strong></td><td>부자재 도면</td><td>전체 기능</td><td>등록/삭제</td><td>다운로드</td><td>보기만</td></tr>
+          <tr><td><strong>GT</strong></td><td>G코드</td><td>-</td><td>등록/수정/삭제</td><td>읽기/다운로드</td><td>접근 차단</td></tr>
+        </table>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 도면 종류 및 파일 타입 코드</div>
+        <div class="arch-grid">
+          <div class="arch-box">
+            <h3>도면 종류 (DRAW_TYPE)</h3>
+            <div class="cfg-body" style="padding:0;">
+              <div class="cfg-row"><div class="cfg-key">X03S</div><div class="cfg-val">표준품 도면</div></div>
+              <div class="cfg-row"><div class="cfg-key">X03C</div><div class="cfg-val">주문품 도면</div></div>
+              <div class="cfg-row"><div class="cfg-key">X03M</div><div class="cfg-val">부자재 도면</div></div>
+              <div class="cfg-row"><div class="cfg-key">X03G</div><div class="cfg-val">G코드 도면</div></div>
+            </div>
+          </div>
+          <div class="arch-box">
+            <h3>파일 타입 (FILE_TYPE)</h3>
+            <div class="cfg-body" style="padding:0;">
+              <div class="cfg-row"><div class="cfg-key">X04A</div><div class="cfg-val">PDF 도면 (보안뷰어 대상)</div></div>
+              <div class="cfg-row"><div class="cfg-key">X04B</div><div class="cfg-val">CAD 도면 (DWG)</div></div>
+              <div class="cfg-row"><div class="cfg-key">X04C</div><div class="cfg-val">일반 첨부파일</div></div>
+              <div class="cfg-row"><div class="cfg-key">X04H</div><div class="cfg-val">가공도 (보안뷰어 대상)</div></div>
+              <div class="cfg-row"><div class="cfg-key">X04I</div><div class="cfg-val">G코드 ZIP 파일</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 2단계: 기능 목록 ════════ -->
+      <div id="page-p2-features" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 02</div>
+          <h2>화면별 기능 상세</h2>
+          <p>각 메뉴의 화면 구성, 사용자 행동 흐름, 핵심 CRUD, DB 테이블 매핑</p>
+          <div class="phase-date">04/09 ~ 진행중</div>
+        </div>
+
+        <!-- 표준품 도면 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 표준품 도면 (StDraw)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>화면 흐름</h4><span class="badge b-ok">PDM DB만 사용</span></div>
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">카테고리 브라우징</strong> (browse.do) → 좌측 트리 + 폴더/도면 목록<br>
+            &nbsp;&nbsp;&nbsp;↓ 도면번호 클릭<br>
+            <strong style="color:#222;">도면 상세</strong> (view.do) → 기본정보 + REV별 파일/유효본/설계변경통보서<br>
+            &nbsp;&nbsp;&nbsp;↓ 버튼 클릭<br>
+            <strong style="color:#222;">도면 등록</strong> (insertDrawRev.do) | <strong style="color:#222;">수정</strong> (modifyDrawRev.do) | <strong style="color:#222;">검색</strong> (search.do) | <strong style="color:#222;">일괄 업로드</strong> (multi.do)
+          </div>
+        </div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-done"><div class="card-label">조회</div><h3>카테고리 브라우징</h3><p>트리 구조 폴더 탐색, 하위 도면 목록 조회</p></div>
+          <div class="card s-done"><div class="card-label">조회</div><h3>도면 검색</h3><p>도면번호/부품명/아이템명 LIKE 검색</p></div>
+          <div class="card s-done"><div class="card-label">조회</div><h3>도면 상세 + REV 이력</h3><p>기본정보, REV별 파일, 유효본 적용 현황</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>도면 신규 등록</h3><p>도면번호 입력, PDF/CAD/첨부/가공도 업로드</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>REV 추가</h3><p>기존 도면에 새 리비전 및 파일 추가</p></div>
+          <div class="card s-done"><div class="card-label">수정</div><h3>도면/REV 수정</h3><p>기본정보, 파일 교체/삭제</p></div>
+          <div class="card s-done"><div class="card-label">삭제</div><h3>도면/REV/파일 삭제</h3><p>REV 없을 때만 도면 삭제 가능</p></div>
+          <div class="card s-done"><div class="card-label">관리</div><h3>카테고리 관리</h3><p>폴더 추가/이름변경/삭제</p></div>
+          <div class="card s-done"><div class="card-label">관리</div><h3>유효본 적용</h3><p>사업장별 적용여부, 적용일 관리</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>일괄 파일 업로드</h3><p>InnoAP ActiveX, 파일명 규칙: drawNo-REVx.ext</p></div>
+        </div>
+        <table class="dtable">
+          <tr><th>테이블</th><th>C</th><th>R</th><th>U</th><th>D</th><th>비고</th></tr>
+          <tr><td><strong>T_DRAW</strong></td><td>O</td><td>O</td><td>O</td><td>O</td><td>도면 마스터</td></tr>
+          <tr><td><strong>T_DRAW_REV</strong></td><td>O</td><td>O</td><td>O</td><td>O</td><td>리비전 이력</td></tr>
+          <tr><td><strong>T_DRAW_FILE</strong></td><td>O</td><td>O</td><td>-</td><td>O</td><td>첨부파일 (PDF, CAD, 가공도)</td></tr>
+          <tr><td><strong>T_DRAW_CATE</strong></td><td>O</td><td>O</td><td>O</td><td>O</td><td>카테고리 트리 (CTE 재귀쿼리)</td></tr>
+          <tr><td><strong>T_DRAW_APPLY</strong></td><td>O</td><td>O</td><td>O</td><td>O</td><td>사업장별 유효본</td></tr>
+          <tr><td><strong>T_DRAW_FILE_LOG</strong></td><td>O</td><td>-</td><td>-</td><td>-</td><td>다운로드 이력 (sysId='reias' 제외)</td></tr>
+        </table>
+
+        <!-- 주문품 도면 -->
+        <div class="sec-title" style="margin-top:40px;"><div class="sec-dot" style="background:#059669;"></div> 주문품 도면 (CtDraw)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>화면 흐름</h4><span class="badge b-warn">PIMS DB 의존</span></div>
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">아이템 검색</strong> (search.do) → 공장/상태별 필터, PIMS에서 아이템 조회<br>
+            &nbsp;&nbsp;&nbsp;↓ "도면관리" 클릭<br>
+            <strong style="color:#222;">도면 관리</strong> (view.do) → BOM 동기화 → 등록된 도면 | 미등록 도면 | 기타 파일<br>
+            &nbsp;&nbsp;&nbsp;↓ 파일 업로드 (InnoAP) → 임시 저장 → 자동선택 → 도면 매핑
+          </div>
+        </div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-done"><div class="card-label">조회</div><h3>아이템 검색</h3><p>공장별, 상태별(사용/개발/단종) 필터</p></div>
+          <div class="card s-done"><div class="card-label">핵심</div><h3>BOM 동기화</h3><p>view 진입 시 PIMS→T_ITEM_BOM 자동 동기화</p></div>
+          <div class="card s-done"><div class="card-label">조회</div><h3>미등록 도면 목록</h3><p>BOM에는 있지만 도면 없는 아이템 자동 계산</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>임시 파일 업로드</h3><p>InnoAP ActiveX → T_ITEM_TEMP</p></div>
+          <div class="card s-done"><div class="card-label">핵심</div><h3>도면 매핑 (자동선택)</h3><p>임시파일→정식도면 변환, 부품/자재 자동분류</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>기타 파일 업로드</h3><p>X04B~G 타입 부속 자료 관리</p></div>
+          <div class="card s-done"><div class="card-label">삭제</div><h3>도면/파일 삭제</h3><p>T_ITEM_DRAW + T_DRAW_FILE 동시 삭제</p></div>
+        </div>
+        <table class="dtable">
+          <tr><th>테이블</th><th>C</th><th>R</th><th>U</th><th>D</th><th>비고</th></tr>
+          <tr><td><strong>T_ITEM_BOM</strong></td><td>O</td><td>O</td><td>O</td><td>-</td><td>PIMS BOM 동기화 대상</td></tr>
+          <tr><td><strong>T_ITEM_DRAW</strong></td><td>O</td><td>O</td><td>-</td><td>O</td><td>아이템↔도면 매핑</td></tr>
+          <tr><td><strong>T_ITEM_TEMP</strong></td><td>O</td><td>O</td><td>-</td><td>O</td><td>임시 업로드 파일</td></tr>
+          <tr><td style="color:#d97706;"><strong>PIMS.s_iteminf</strong></td><td>-</td><td>O</td><td>-</td><td>-</td><td style="color:#d97706;">외부 - 아이템 검색</td></tr>
+          <tr><td style="color:#d97706;"><strong>PIMS.p_stdbom</strong></td><td>-</td><td>O</td><td>-</td><td>-</td><td style="color:#d97706;">외부 - BOM 조회</td></tr>
+        </table>
+
+        <!-- 설계변경 -->
+        <div class="sec-title" style="margin-top:40px;"><div class="sec-dot" style="background:#dc2626;"></div> 설계변경 (Change)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>화면 흐름</h4><span class="badge b-off">EP 포털 DB 필수 - 로컬 불가</span></div>
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">To-Do List</strong> (toDoList.do) → 기능 미구현 (빈 페이지)<br>
+            <strong style="color:#222;">요청서 목록</strong> (request/list.do) → 검색/페이징 → <strong>상세 조회</strong> (request/view.do)<br>
+            <strong style="color:#222;">통보서 목록</strong> (notice/list.do) → 사업장별 적용 현황 표시<br>
+            &nbsp;&nbsp;&nbsp;↓ 클릭<br>
+            <strong style="color:#222;">통보서 적용 관리</strong> (notice/apply.do) → 도면 적용 | 사업장 적용정보 | 적용 이력
+          </div>
+        </div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-todo"><div class="card-label" style="color:#999;">빈 페이지</div><h3>To-Do List</h3><p>기능 미구현 상태, 레이아웃만 존재</p></div>
+          <div class="card" style="border-left:3px solid #dc2626;"><div class="card-label" style="color:#dc2626;">EP DB</div><h3>요청서 목록/상세</h3><p>WF_FLOW에서 Form=F1357 조회. 결재라인, 첨부파일 포함</p></div>
+          <div class="card" style="border-left:3px solid #dc2626;"><div class="card-label" style="color:#dc2626;">EP DB</div><h3>통보서 목록</h3><p>WF_FLOW에서 Form=F1358 조회. 사업장 적용현황 표시</p></div>
+          <div class="card" style="border-left:3px solid #dc2626;"><div class="card-label" style="color:#dc2626;">EP + PDM</div><h3>통보서 적용 관리</h3><p>도면별/사업장별 적용여부, 예정일, 이력 관리</p></div>
+          <div class="card s-done"><div class="card-label">PDM DB</div><h3>도면 적용 저장</h3><p>T_DRAW_APPLY에 적용여부/일자 저장</p></div>
+          <div class="card s-done"><div class="card-label">PDM DB</div><h3>적용 이력 기록</h3><p>T_APPLY_HIST에 이력 INSERT</p></div>
+        </div>
+
+        <!-- G코드 -->
+        <div class="sec-title" style="margin-top:40px;"><div class="sec-dot" style="background:#7c3aed;"></div> G코드 도면 (GtDraw)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>화면 흐름</h4><span class="badge b-warn">EP DB 부분 의존</span></div>
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">카테고리 브라우징</strong> (browse.do) → 브랜드별 트리 (GF/GI/GS) + 도면 목록 + <span style="color:#dc2626;">전자결재명(EP DB)</span><br>
+            &nbsp;&nbsp;&nbsp;↓ 도면번호 클릭<br>
+            <strong style="color:#222;">도면 상세</strong> (view.do) → REV별 ZIP파일 + CAD + 가공도 + 다운로드 이력 + 유효본<br>
+            &nbsp;&nbsp;&nbsp;↓ 등록<br>
+            <strong style="color:#222;">도면 등록</strong> (insertDrawRev.do) → 도면번호 자동생성: 브랜드+년월+4자리
+          </div>
+        </div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-done"><div class="card-label">조회</div><h3>브랜드별 브라우징</h3><p>GF(퍼시스), GI(일룸), GS(시디즈) 트리</p></div>
+          <div class="card s-done"><div class="card-label">조회</div><h3>도면 검색</h3><p>도면번호/아이템명 검색</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>G코드 등록</h3><p>도면번호 자동생성, 최대 6개 ZIP 파일</p></div>
+          <div class="card s-done"><div class="card-label">관리</div><h3>REV/파일/유효본 관리</h3><p>표준품과 동일 패턴</p></div>
+          <div class="card" style="border-left:3px solid #dc2626;"><div class="card-label" style="color:#dc2626;">EP DB</div><h3>전자결재 연계</h3><p>WF_CUSTOM_DATA에서 결재건명 조회 (browse에서 표시)</p></div>
+          <div class="card s-done"><div class="card-label">조회</div><h3>파일 다운로드 이력</h3><p>T_DRAW_FILE_LOG + T_USER 조인</p></div>
+        </div>
+
+        <!-- 부자재 도면 -->
+        <div class="sec-title" style="margin-top:40px;"><div class="sec-dot" style="background:#d97706;"></div> 부자재 도면 (MtDraw)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>화면 흐름 (가장 단순)</h4><span class="badge b-warn">PIMS DB 의존</span></div>
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">자재 검색</strong> (search.do) → PIMS에서 자재 조회 → 도면 있으면 보기/다운로드, 없으면 업로드<br>
+            기능이 매우 단순: 검색 → 업로드 → 삭제 (3개 화면)
+          </div>
+        </div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-done"><div class="card-label">조회</div><h3>자재 검색</h3><p>공장별 자재코드/자재명 검색 (PIMS)</p></div>
+          <div class="card s-done"><div class="card-label">등록</div><h3>PDF 업로드</h3><p>단일 PDF 파일 업로드</p></div>
+          <div class="card s-done"><div class="card-label">삭제</div><h3>도면 삭제</h3><p>파일 + DB 레코드 삭제</p></div>
+        </div>
+
+        <!-- API/뷰어 -->
+        <div class="sec-title" style="margin-top:40px;"><div class="sec-dot" style="background:#6366f1;"></div> API / 도면 뷰어</div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+          <div class="card s-done"><div class="card-label">뷰어</div><h3>PDF 보안뷰어</h3><p>Mozilla PDF.js 기반, Base64 인코딩, Ctrl+P 차단</p></div>
+          <div class="card s-done"><div class="card-label">뷰어</div><h3>FlexPaper 뷰어 (레거시)</h3><p>PDF→SWF 변환 후 Flash 기반 표시</p></div>
+          <div class="card s-done"><div class="card-label">API</div><h3>파일 다운로드</h3><p>SSO 검증 + 권한 체크 + 다운로드 로그</p></div>
+          <div class="card s-done"><div class="card-label">API</div><h3>G코드 상세 (외부용)</h3><p>SSO 파라미터로 인증, 외부 시스템 연동용</p></div>
+        </div>
+      </div>
+
+      <!-- ════════ 2단계: 문제점 도출 ════════ -->
+      <div id="page-p2-issues" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 02</div>
+          <h2>문제점 도출</h2>
+          <p>현행 시스템 분석 과정에서 발견된 기술적/기능적 문제점과 개선 기회</p>
+          <div class="phase-date">04/09 ~ 진행중</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 심각 (기능 장애)</div>
+        <div class="cards">
+          <div class="card s-todo"><div class="card-label">외부 DB 의존성</div><h3>EP 포털 DB 접속 불가 시 설계변경 메뉴 전체 마비</h3><p>설계변경의 모든 조회가 EP DB(14.63.219.169)에 의존. 연결 불가 시 요청서/통보서 목록 및 상세 조회 불가. 로컬 개발환경에서 해당 기능 테스트 불가능.</p><span class="card-tag">기능 장애</span></div>
+          <div class="card s-todo"><div class="card-label">외부 DB 의존성</div><h3>PIMS DB 접속 불가 시 주문품/부자재 검색 불가</h3><p>주문품 아이템 검색과 부자재 자재 검색이 PIMS Sybase DB에 의존. 연결 불가 시 두 메뉴 모두 사용 불가.</p><span class="card-tag">기능 장애</span></div>
+          <div class="card s-todo"><div class="card-label">미구현</div><h3>To-Do List 기능 미구현</h3><p>설계변경 메뉴의 첫 화면(toDoList.do)이 빈 페이지. 로그인 후 리다이렉트 기본 경로가 이 페이지여서 첫 인상이 빈 화면.</p><span class="card-tag">UX 문제</span></div>
+          <div class="card s-todo" style="border-left:3px solid #dc2626;"><div class="card-label" style="color:#dc2626;">★ 데이터 오염</div><h3>ITEM_ACNT 컬럼 의미 오매핑 (Sybase→MSSQL 전환 실수 추정)</h3><p><strong>증상</strong>: PDM <code>T_ITEM_BOM.ITEM_ACNT</code> 1,097,287건 전부 <code>M03xxx</code>(ERP 자재계정코드)로 채워져있음. 원래 의도는 <code>T_CODE</code>의 X04 계열(X04A=PDF 도면, X04B=DWG, ..., X04H=가공도) 파일타입 코드.<br/><strong>연쇄 영향</strong>: ① <code>CtDrawDao.getMissList</code>의 철물/테이프/스티커 자동제외 로직 무력화 ② <code>CtDrawController.mapping.do</code>의 파일타입 분기(X/0/else)에서 M-시작 값이 else로만 매칭되어 모든 주문품이 X03M(부자재)+PDF로 저장 ③ 주문품 등록 시 파일타입 선택 기능 사실상 사라짐.<br/><strong>원인 가설</strong>: 전임자가 Sybase→MSSQL 마이그 시 <code>s_mathed.matacnt</code>(과거 파일타입 추정) → <code>TT_MATDTL.MATACNT</code>(자재계정) 컬럼명 유사성만 보고 매핑. 두 컬럼은 이름만 같고 도메인이 완전 다름.<br/><strong>확정 필요</strong>: 운영 PDM의 ITEM_ACNT 분포 확인, 현업 인터뷰로 과거 파일타입 선택 UI 유무 확인, ERP팀에 Sybase 시절 matacnt 의미 확인.</p><span class="card-tag">데이터 오염</span></div>
+          <div class="card s-todo"><div class="card-label">파일 저장소</div><h3>도면 실파일 경로가 로컬 디스크 하드코딩</h3><p><code>C.java</code>의 <code>UPLOAD_PATH = "C:/development/PDM_WEB/WebContent/_upload"</code>로 박혀있음. 운영은 파일서버(UNC/공유경로)에 실파일이 있고, 로컬에는 일부 샘플만 존재. T_DRAW_FILE의 PATH+FILE_NM이 로컬에 없으면 viewer가 "도면파일이 존재하지 않습니다" 반환. 환경별 분기 없음.</p><span class="card-tag">배포 리스크</span></div>
+          <div class="card s-todo"><div class="card-label">파일 저장소</div><h3>FTP 수동 배포 체계</h3><p>WAR/자동배포 파이프라인 없이 FTP로 개별 파일 업로드하는 배포 방식. 빌드 산출물/정적 리소스/JSP를 선별 전송해야 하며 실수 시 롤백 곤란. 파일서버 접근권한/경로/계정 사전 확인 필요.</p><span class="card-tag">배포 리스크</span></div>
+          <div class="card s-todo"><div class="card-label">형상 불일치</div><h3>Git 리포와 운영 서버의 동기화 여부 미확인</h3><p>전산실에 설치된 운영 PDM과 현재 Git 리포의 코드가 100% 일치하는지 확증 불가. 운영에서 hotfix된 사항이 Git에 반영 안 됐을 가능성 존재. 배포 전 운영 WAR/war 압축본 회수 후 diff 검증 필요.</p><span class="card-tag">배포 리스크</span></div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> 경고 (기술부채)</div>
+        <div class="cards">
+          <div class="card s-prog"><div class="card-label">레거시</div><h3>빌드 도구 부재</h3><p>Maven/Gradle 없이 WEB-INF/lib에 JAR 37개 직접 포함. 의존성 관리, 버전 추적, 자동 빌드 불가.</p><span class="card-tag">기술부채</span></div>
+          <div class="card s-prog"><div class="card-label">레거시</div><h3>InnoAP ActiveX 의존</h3><p>주문품/표준품의 일괄 파일 업로드가 ActiveX 기반 InnoAP 컴포넌트에 의존. IE 외 브라우저 미지원.</p><span class="card-tag">호환성</span></div>
+          <div class="card s-prog"><div class="card-label">레거시</div><h3>FlexPaper (Flash) 뷰어 잔존</h3><p>PDF→SWF 변환 후 Flash로 보여주는 구 방식이 코드에 남아있음. Mozilla PDF.js로 전환되었으나 레거시 코드 잔존.</p><span class="card-tag">기술부채</span></div>
+          <div class="card s-prog"><div class="card-label">아키텍처</div><h3>StDrawDao를 다른 모듈이 직접 호출</h3><p>CtDraw, GtDraw, MtDraw가 자체 DAO 대신 StDrawDao의 insertDraw/insertDrawFile 등을 직접 호출. 모듈 간 결합도가 높음.</p><span class="card-tag">구조</span></div>
+          <div class="card s-prog"><div class="card-label">보안</div><h3>SQL Injection 가능성</h3><p>StDrawDao의 updateDrawProperty()가 컬럼명을 동적으로 조합하여 SQL 실행. Named Parameter를 쓰지만 컬럼명은 문자열 결합.</p><span class="card-tag">보안</span></div>
+          <div class="card s-prog"><div class="card-label">보안</div><h3>SSO 우회 하드코딩</h3><p>AccountController에 userId가 하드코딩되어 있고, 세션 체크 인터셉터도 전체 주석처리 상태. 개발 편의를 위한 것이나 운영 반영 시 위험.</p><span class="card-tag">보안</span></div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 개선 기회</div>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #6366f1;"><div class="card-label" style="color:#6366f1;">UX</div><h3>통합 검색 기능</h3><p>현재 각 메뉴별로 검색이 분리되어 있음. 전체 도면 통합 검색 기능이 있으면 사용자 편의 향상.</p></div>
+          <div class="card" style="border-left:3px solid #6366f1;"><div class="card-label" style="color:#6366f1;">UX</div><h3>파일 업로드 현대화</h3><p>ActiveX 대신 HTML5 Drag&Drop 파일 업로드로 교체하면 브라우저 호환성 확보.</p></div>
+          <div class="card" style="border-left:3px solid #6366f1;"><div class="card-label" style="color:#6366f1;">아키텍처</div><h3>외부 DB 의존성 완화</h3><p>EP/PIMS 데이터를 PDM DB로 주기적 동기화하여, 외부 DB 장애 시에도 기본 조회 가능하도록 구조 개선.</p></div>
+          <div class="card" style="border-left:3px solid #6366f1;"><div class="card-label" style="color:#6366f1;">기술</div><h3>프레임워크 현대화</h3><p>Spring MVC 3.2 → Spring Boot 마이그레이션, jQuery+EasyUI → 현대적 프론트엔드 프레임워크 도입 검토.</p></div>
+        </div>
+      </div>
+
+      <!-- ════════ 3단계: 문제 정의 ════════ -->
+      <div id="page-p3-main" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 03</div>
+          <h2>문제 정의</h2>
+          <p>보안으로 막았지만 현실에서는 보안이 전혀 작동하지 않는 도면 배포 문제의 본질</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <!-- 한 줄 요약 -->
+        <div class="cfg">
+          <div class="cfg-head"><h4>문제의 본질</h4><span class="badge b-off">핵심</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">현상</div><div class="cfg-val">ERP에서 사내협력사의 도면 다운로드를 <strong>보안 이유로 차단</strong>했지만, 품질 검사 관리를 위해 실물 도면을 활용하고있어, <strong>우회 루트(EP-Drive)가 발생</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">결과</div><div class="cfg-val" style="color:#dc2626; font-weight:600;">보안은 무력화되고, 전 부서가 수작업 우회 루트에 의존. 워터마크 없음, 이력 없음, 감사 추적 불가.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">미션</div><div class="cfg-val" style="color:#059669; font-weight:600;">도면의 공식 배포 루트를 보안 관점을 챙기면서 만들어주고, 현업의 수작업을 줄여주는 것</div></div>
+          </div>
+        </div>
+
+        <!-- 부서별 고통 (04-17 개정) -->
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 부서별 고통 (5개 부서 전부 불편)</div>
+
+        <div class="cards">
+          <div class="card s-todo">
+            <div class="card-label">사내협력사 (생산 현장)</div>
+            <h3>품질 검사 체크를 위해 도면이 필요하다</h3>
+            <p>ERP를 통한 도면 다운로드 차단 → PDM에 별도 접속해 다운로드 / NPDM은 접속 권한 자체가 없어 <strong>EP-DRIVE를 통해 다운</strong>. 다운받은 도면과 ERP 부품규격표를 매칭하여 바인딩 후 작업자별 인계. 검사기록을 도면 위에 수기 작성. PDM인지 NPDM인지 EP-DRIVE인지 하나하나 다 해봐야 함. <strong>이 업무만을 위한 별도 사무실 인력 1인 고용, 일 11시간 작업 중.</strong></p>
+            <span class="card-tag">다채널 도면수집 + 바인딩 노가다</span>
+          </div>
+          <div class="card s-todo">
+            <div class="card-label">제품기술팀 — 현장 배포 (병목 A)</div>
+            <h3>현장용 도면 바인딩/배포 요청 처리</h3>
+            <p>품질보증팀/사내협력사의 현장 배포 요청 접수 → BOM별로 PDM/PLM/ERP 오가며 다운 → 부품규격표+도면 바인딩 → EP-DRIVE 수동 업로드(사내협력사용) → 개정 나면 구버전 교체까지 직접. 용량 부족으로 기존 파일 삭제하며 운영.</p>
+            <span class="card-tag">수작업 병목 (현장)</span>
+          </div>
+          <div class="card s-todo">
+            <div class="card-label">제품기술팀 — 외주 배포 (병목 B)</div>
+            <h3>생산/구매/자체 상품견적의 외주 도면 전달</h3>
+            <p>생산팀(재공품 외주견적) + 구매팀(자재 견적) + 자체 상품견적 도면 요청 접수 → BOM 수만큼 반복 다운 → 워터마크 수동(무료 프로그램) → 카톡/메일로 협력업체에 발송. <strong>NPDM에 외주 배포 기능이 있지만 미사용.</strong> 모든 전달이 비공식 채널.</p>
+            <span class="card-tag">수작업 병목 (외주) + NPDM 미활용</span>
+          </div>
+          <div class="card s-todo">
+            <div class="card-label">구매/생산팀 (외주 견적)</div>
+            <h3>BOM 수만큼 다운 + 개정 여부 확신 불가</h3>
+            <p>외주 견적을 위해 도면을 BOM 수만큼 조회/다운. <strong>도면 개정 여부를 확신할 수 없음</strong> (IMOS 도면은 리비전 변경 없이 기존 도면을 덮어쓰기 업데이트). 직접 다운받으면 오류 책임 우려 → 편하고 책임 안 지는 <strong>제품기술팀 의뢰로 일원화</strong>. 결과적으로 병목 심화.</p>
+            <span class="card-tag">개정 불확실 + 책임 회피 → 병목 심화</span>
+          </div>
+          <div class="card s-todo">
+            <div class="card-label">품질보증팀</div>
+            <h3>사후 하자 검증 + 현장 검사 활성화 목적</h3>
+            <p>출고 후 하자 발생 시 생산 당시 품질검사 여부와 검사 포인트를 확인하기 위한 도면 보관(3개월). 현장 검사를 활성화하려면 실물 도면이 작업자에게 정확히 도달해야 함. 배포 체인이 깨지면 <strong>품질관리 자체가 불가능</strong>.</p>
+            <span class="card-tag">하자 검증 + 검사 활성화</span>
+          </div>
+          <div class="card s-todo">
+            <div class="card-label">IT본부 (보안 딜레마)</div>
+            <h3>차단했지만 다건의 백도어 채널이 발생</h3>
+            <p>ERP를 통한 다운로드 차단 → 그러나 <strong>구도면/IMOS 도면은 PDM에서 다운 가능</strong>(ERP는 viewer만 수행). NPDM 권한 없는 사내협력사는 <strong>EP-DRIVE 백도어</strong> 발생. NPDM에 외주배포 기능 있지만 구매/생산/제품기술팀 모두 <strong>카톡/메일/전화로 배포</strong>(NPDM 미사용). 결과: 워터마크 누락, 다운/업로드 이력 누락, 사용목적 누락 — <strong>다건의 백도어 채널과 보안 구멍</strong>.</p>
+            <span class="card-tag">다채널 백도어 + 보안 전면 무력화</span>
+          </div>
+        </div>
+
+        <!-- 팀장 지시 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> IT 리더 지시 (박성진님)</div>
+        <div class="cfg">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">불편하니까 풀어줄 수 있다</div><div class="cfg-val">다만, <strong>한번 풀면 다시 돌리기 어렵다</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">단순 오픈이 아님</div><div class="cfg-val"><strong>업무 자동화/개선 관점의 변경</strong>을 수반해야 함</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">보안 프로세스</div><div class="cfg-val">출력 권한 관리, 출력 이력, 워터마크 등 <strong>최소한의 보안 체계 구축</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">최종 산출</div><div class="cfg-val">성진님께 <strong>승인 + 설계보고</strong>를 드릴 수 있는 수준</div></div>
+          </div>
+        </div>
+
+        <!-- 이해관계자 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 이해관계자 맵</div>
+        <table class="dtable">
+          <tr><th>구분</th><th>대상</th><th>핵심 니즈</th><th>상태</th></tr>
+          <tr><td><strong>의사결정</strong></td><td>박성진님 (IT 리더)</td><td>보안 + 자동화 균형잡힌 개선, 최종 승인</td><td><span class="badge b-ok">지시 완료</span></td></tr>
+          <tr><td><strong>PM</strong></td><td>김효섭 (IT센터)</td><td>전 과정 기획/설계/개발/배포 책임</td><td><span class="badge b-ok">진행중</span></td></tr>
+          <tr><td><strong>현업 요청</strong></td><td>충주 제품기술팀</td><td>수작업(PDM→EP-Drive) 제거</td><td><span class="badge b-ok">사전 인터뷰 완료</span></td></tr>
+          <tr><td><strong>현장</strong></td><td>사내협력사</td><td>도면 직접 접근 (출력/조회)</td><td><span class="badge b-warn">추가 확인 필요</span></td></tr>
+          <tr><td><strong>발주</strong></td><td>구매/생산팀</td><td>제품코드/자재코드로 도면 검색, 외주 배포</td><td><span class="badge b-warn">추가 확인 필요</span></td></tr>
+          <tr><td><strong>품질</strong></td><td>품질보증팀</td><td>출력 도면 수집/보관 체계</td><td><span class="badge b-warn">추가 확인 필요</span></td></tr>
+        </table>
+
+        <!-- 프로젝트 범위 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#7c3aed;"></div> 프로젝트 범위</div>
+        <div class="arch-grid">
+          <div class="arch-box" style="border-left:3px solid #059669;">
+            <h3 style="color:#059669;">범위 내 (IN SCOPE)</h3>
+            <p style="font-size:12px; color:#666; line-height:1.8;">
+              - PDM에서 보안이 갖춰진 도면 출력/다운로드 공식 루트 구축<br>
+              - 워터마크, 출력 이력, 권한 체계 수립<br>
+              - 제품코드/자재코드 기반 도면 검색 기능<br>
+              - 사내협력사 접근 경로 (제한적)<br>
+              - 구매/생산팀의 외주 도면 배포 지원<br>
+              - 필요시 ERP 화면에서 PDM 도면 연계
+            </p>
+          </div>
+          <div class="arch-box" style="border-left:3px solid #dc2626;">
+            <h3 style="color:#dc2626;">범위 외 (OUT OF SCOPE)</h3>
+            <p style="font-size:12px; color:#666; line-height:1.8;">
+              - 각 부서 업무 프로세스 전면 재설계<br>
+              - imos/creo → PDM 자동 업로드 (PLM 영역)<br>
+              - CUSTOM PLUS 자동설계 연동 (별도 프로젝트)<br>
+              - ERP 자체 기능 대규모 변경<br>
+              - 디지털 품질검사 체계 구축 (장기 과제)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 3단계: AS-IS 업무 흐름 ════════ -->
+      <div id="page-p3-functional" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 03</div>
+          <h2>AS-IS 업무 흐름</h2>
+          <p>현재 각 부서가 도면을 확보하기 위해 거치는 실제 프로세스</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <!-- AS-IS 메인 플로우 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> AS-IS: 도면 배포 우회 루트 (현재)</div>
+        <div class="cfg" style="background:#fff;">
+          <div class="cfg-body" style="padding:24px;">
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px; line-height:1.8;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#eff6ff; color:#2563eb; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">사내협력사</span>
+                <span style="color:#999;">ERP에서 생산계획 확인</span>
+              </div>
+              <div style="padding-left:70px; color:#dc2626; font-weight:600;">↓ 도면 다운로드 차단 (보안 정책)</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#eff6ff; color:#2563eb; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">사내협력사</span>
+                <span style="color:#999;">제품기술팀에 도면 요청 (전화/메신저)</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#fef2f2; color:#dc2626; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">제품기술팀</span>
+                <span style="color:#999;">PDM 접속 → 도면 검색 → 다운로드</span>
+                <span class="badge b-warn">수작업</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#fef2f2; color:#dc2626; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">제품기술팀</span>
+                <span style="color:#999;">EP-Drive에 도면 업로드 → 요청자에 전달</span>
+                <span class="badge b-warn">수작업</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#eff6ff; color:#2563eb; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">사내협력사</span>
+                <span style="color:#999;">EP-Drive에서 다운로드 → <strong>출력</strong> → 생산 현장에서 사용</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#faf5ff; color:#7c3aed; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">품질보증팀</span>
+                <span style="color:#999;">품질검사 기록 적힌 도면 수집 → 3개월 보관</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 구매팀 플로우 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> AS-IS: 구매/생산팀 외주 견적 루트</div>
+        <div class="cfg" style="background:#fff;">
+          <div class="cfg-body" style="padding:24px;">
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px; line-height:1.8;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">구매/생산팀</span>
+                <span style="color:#999;">외주업체에 발주/견적 필요 → 도면이 있어야 함</span>
+              </div>
+              <div style="padding-left:70px; color:#dc2626; font-weight:600;">↓ PDM에서 제품코드/자재코드로 검색 불가</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">구매/생산팀</span>
+                <span style="color:#999;">제품기술팀에 "이 도면 뽑아달라" 의뢰</span>
+                <span class="badge b-warn">의존</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#fef2f2; color:#dc2626; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">제품기술팀</span>
+                <span style="color:#999;">PDM에서 도면번호로 찾아서 다운로드 → 구매팀에 전달</span>
+                <span class="badge b-warn">수작업</span>
+              </div>
+              <div style="padding-left:70px; color:#d97706;">↓</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">구매/생산팀</span>
+                <span style="color:#999;">도면을 외주업체에 전달 → "이거 만들 수 있나요? 얼마인가요?"</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ERP 도면조회 플로우 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#7c3aed;"></div> AS-IS: ERP "PDM 도면조회" 버튼 클릭 흐름</div>
+        <div class="cfg" style="background:#fff;">
+          <div class="cfg-head"><h4>ERP 가공실적(PPC0200) / 포장실적(PPC0210) → PDM 도면조회</h4><span class="badge" style="background:#faf5ff; color:#7c3aed;">Nexacro → NPDM/PDM</span></div>
+          <div class="cfg-body" style="padding:24px;">
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px; line-height:1.8;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#eff6ff; color:#2563eb; padding:6px 14px; border-radius:8px; font-weight:600; min-width:120px; text-align:center;">ERP 화면</span>
+                <span style="color:#333;">사용자가 부품 선택 후 <strong>"PDM 도면조회"</strong> 버튼 클릭</span>
+              </div>
+              <div style="padding-left:60px; color:#666;">↓ <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:11px;">gfn_web_dwgno(STORECD, ITEMCD, ITEMCOL)</code></div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#eff6ff; color:#2563eb; padding:6px 14px; border-radius:8px; font-weight:600; min-width:120px; text-align:center;">ERP 서버</span>
+                <span style="color:#333;">SQL: <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:11px;">TT_MATMST</code>에서 DWGNO, REVNO 조회</span>
+              </div>
+              <div style="padding-left:60px; color:#666;">↓ 도면번호 존재 여부에 따라 분기</div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:8px 0;">
+                <div style="background:#ecfdf5; border:1px solid #d1fae5; border-radius:10px; padding:14px;">
+                  <div style="font-size:11px; font-weight:700; color:#059669; margin-bottom:6px;">경로 A: 도면번호 있음 (NPDM)</div>
+                  <div style="font-size:12px; color:#555; line-height:1.7;">
+                    1. AES256 암호화: <code style="font-size:10px;">"160B-611||0||{timestamp}"</code><br>
+                    2. <strong>npdm.fursys.com</strong>/erpPdfView/viewSecPdf.do?code=[암호화값]<br>
+                    3. NPDM 보안뷰어에서 PDF 표시
+                  </div>
+                </div>
+                <div style="background:#eff6ff; border:1px solid #dbeafe; border-radius:10px; padding:14px;">
+                  <div style="font-size:11px; font-weight:700; color:#2563eb; margin-bottom:6px;">경로 B: 도면번호 없음 (레거시 PDM)</div>
+                  <div style="font-size:12px; color:#555; line-height:1.7;">
+                    1. <strong>pdm.fursys.com</strong>/api/view.do<br>
+                    2. 파라미터: userId, ssoKey, storeCd, itemCd, itemCol<br>
+                    3. PDM_WEB 보안뷰어(PDF.js)에서 표시
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#fef2f2; color:#dc2626; padding:6px 14px; border-radius:8px; font-weight:600; min-width:120px; text-align:center;">두 경로 모두</span>
+                <span style="color:#dc2626; font-weight:600;">출력 차단(Ctrl+P) / 다운로드 없음 / 복사 차단 → 실물 도면 확보 불가</span>
+              </div>
+              <div style="padding-left:60px; color:#dc2626; font-weight:500;">↓ 결국 제품기술팀에 전화 → EP-Drive 우회 루트 발생</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 기술 상세 -->
+        <div class="cfg">
+          <div class="cfg-head"><h4>보안 차단 메커니즘 상세 (PDM_WEB: mozilla_pdf_js.jsp)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">인쇄 차단 (3중)</div><div class="cfg-val">HTML <code class="neutral">mozdisallowselectionprint</code> + CSS <code class="neutral">@media print { display:none }</code> + JS <code class="neutral">Ctrl+P keydown 차단</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">복사 차단</div><div class="cfg-val"><code class="neutral">setInterval("ClipBoardClear()", 100)</code> — 100ms마다 클립보드 초기화</div></div>
+            <div class="cfg-row"><div class="cfg-key">다운로드</div><div class="cfg-val">뷰어에 다운로드 버튼 자체가 없음</div></div>
+            <div class="cfg-row"><div class="cfg-key">DRM</div><div class="cfg-val" style="color:#d97706;">없음. Fasoo/MarkAny 등 DRM 솔루션 미적용. JS 레벨 차단만 존재.</div></div>
+            <div class="cfg-row"><div class="cfg-key">PDF 전달 방식</div><div class="cfg-val">서버에서 원본 PDF → Base64 인코딩 → JSP model로 전달 → PDF.js 렌더링</div></div>
+            <div class="cfg-row"><div class="cfg-key">워터마크 삽입 가능 지점</div><div class="cfg-val"><code class="neutral">ApiController.java:548행</code> — Base64 인코딩 직전, PDFBox(이미 존재) 활용</div></div>
+          </div>
+        </div>
+
+        <!-- ERP-PDM 연계 구조 -->
+        <div class="cfg">
+          <div class="cfg-head"><h4>ERP ↔ PDM 연계 구조 (현재)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">ERP 버튼 소스</div><div class="cfg-val"><code class="neutral">CommUtil.xjs</code> → <code class="neutral">gfn_web_dwgno()</code> → <code class="neutral">gfn_plm_link()</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">도면번호 조회</div><div class="cfg-val">SQL: <code class="neutral">TT_MATMST.DWGNO, REVNO</code> (원재료 마스터)</div></div>
+            <div class="cfg-row"><div class="cfg-key">암호화</div><div class="cfg-val"><code class="neutral">TMI0010Controller</code> → <code class="neutral">AES256.encryptToStr()</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">NPDM 서버</div><div class="cfg-val"><code class="neutral">npdm.fursys.com</code> — 별도 시스템, PDM_WEB과 다름</div></div>
+            <div class="cfg-row"><div class="cfg-key">레거시 PDM</div><div class="cfg-val"><code class="neutral">pdm.fursys.com/api/view.do</code> — 이 프로젝트(PDM_WEB)</div></div>
+          </div>
+        </div>
+
+        <!-- 문제 요약 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> AS-IS 핵심 문제 요약</div>
+        <table class="dtable">
+          <tr><th>문제</th><th>영향 부서</th><th>발생 빈도</th><th>핵심 원인</th></tr>
+          <tr><td><strong>제품기술팀이 도면 배포 병목</strong></td><td>전 부서</td><td>매일 상시</td><td>다른 부서가 직접 도면에 접근할 수 없음</td></tr>
+          <tr><td><strong>EP-Drive 우회 루트로 보안 무력화</strong></td><td>IT센터</td><td>상시</td><td>보안 차단 ↔ 업무 필요 간 충돌</td></tr>
+          <tr><td><strong>제품코드/자재코드로 도면 검색 불가</strong></td><td>구매/생산팀</td><td>외주 발주마다</td><td>PDM이 도면번호 기반 검색만 지원</td></tr>
+          <tr><td><strong>출력 이력/워터마크 없음</strong></td><td>IT센터, 경영진</td><td>-</td><td>보안 체계 자체가 구축되지 않음</td></tr>
+          <tr><td><strong>EP-Drive 용량 부족</strong></td><td>제품기술팀</td><td>수시</td><td>우회 루트의 물리적 한계</td></tr>
+        </table>
+      </div>
+
+      <!-- ════════ 3단계: TO-BE 요구사항 ════════ -->
+      <div id="page-p3-nonfunc" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 03</div>
+          <h2>TO-BE 요구사항</h2>
+          <p>PDM 기술적 개선 범위의 기능/비기능 요구사항. 전체 AS-IS/TO-BE 업무/시스템 관점은 <strong>★바이블 참조</strong>.</p>
+          <div class="phase-date">04/10 ~ 진행중 | 04-17 트랙 B 방향 수정 반영</div>
+        </div>
+
+        <!-- TO-BE 방향 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> TO-BE 개선 방향</div>
+        <div class="cfg">
+          <div class="cfg-body" style="padding:24px;">
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px; line-height:1.8;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">사내협력사</span>
+                <span style="color:#333;"><strong>PDM에서 직접</strong> 도면 조회 → 보안 인쇄 (워터마크 자동)</span>
+                <span class="badge b-ok">셀프서비스</span>
+              </div>
+              <div style="padding-left:70px; color:#059669; font-weight:500;">↑ EP-Drive 우회 루트 제거. 제품기술팀 병목 해소.</div>
+              <div style="margin-top:12px; display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">구매/생산팀</span>
+                <span style="color:#333;"><strong>제품코드/자재코드로 검색</strong> → 직접 도면 확보 → 외주 배포</span>
+                <span class="badge b-ok">자체 해결</span>
+              </div>
+              <div style="padding-left:70px; color:#059669; font-weight:500;">↑ 제품기술팀 의뢰 불필요. 검색 경로 신설.</div>
+              <div style="margin-top:12px; display:flex; align-items:center; gap:12px;">
+                <span style="background:#ecfdf5; color:#059669; padding:6px 14px; border-radius:8px; font-weight:600; min-width:140px; text-align:center;">IT센터</span>
+                <span style="color:#333;">모든 출력/다운로드에 <strong>워터마크 + 이력 + 권한 체크</strong> 적용</span>
+                <span class="badge b-ok">보안 확보</span>
+              </div>
+              <div style="padding-left:70px; color:#059669; font-weight:500;">↑ 기존보다 오히려 보안이 강화됨 (추적 가능해짐)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 개선 방향 3안 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 단계적 개선 로드맵 (3단계)</div>
+        <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="card" style="border-left:3px solid #059669; border-top:3px solid #059669;">
+            <div class="card-label" style="color:#059669;">1단계 | PDM + NPDM 개선 (이번 프로젝트)</div>
+            <h3>보안 도면 출력(트랙A) + NPDM 배포 활성화(트랙B)</h3>
+            <p style="line-height:1.8;">
+              - 트랙 A: 권한 기반 조회/출력 + 워터마크 + 이력 자동<br>
+              - 트랙 B: NPDM 외주배포 기능 활성화 + UX 개선<br>
+              - 제품코드/자재코드 검색 추가<br>
+              - EP-Drive/카톡 우회 루트 단계적 제거<br>
+              - 제품기술팀 병목 해소 (4팀 직접 처리)
+            </p>
+            <div style="margin-top:10px;">
+              <span class="tag tag-green">이번 프로젝트 범위</span>
+            </div>
+          </div>
+          <div class="card" style="border-left:3px solid #2563eb;">
+            <div class="card-label" style="color:#2563eb;">2단계 | ERP 연계 (다음 과제)</div>
+            <h3>ERP-PDM 자동 도면 조회</h3>
+            <p style="line-height:1.8;">
+              - ERP 생산오더 화면에서 도면 직접 연결<br>
+              - 부품이동카드 출력 시 도면 자동 첨부<br>
+              - 외주 발주서에 도면 자동 첨부<br>
+              - 공정/오더/LOT 기준 도면 매핑
+            </p>
+            <div style="margin-top:10px;">
+              <span class="tag tag-blue">ERP 프로젝트 필요</span>
+            </div>
+          </div>
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">3단계 | 디지털 전환 (장기)</div>
+            <h3>현장 디지털 도면 조회 체계</h3>
+            <p style="line-height:1.8;">
+              - 현장 태블릿/키오스크 도면 조회<br>
+              - 바코드/QR 스캔으로 즉시 조회<br>
+              - 디지털 품질검사 기록 (종이 제거)<br>
+              - CUSTOM PLUS 자동 배포 연동
+            </p>
+            <div style="margin-top:10px;">
+              <span class="tag tag-purple">인프라 투자 필요</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 기능 요구사항 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 기능 요구사항 (1단계 범위)</div>
+        <table class="dtable">
+          <tr><th>ID</th><th>요구사항</th><th>해결하는 문제</th><th>수혜 부서</th><th>우선순위</th></tr>
+          <tr><td><strong>FR-01</strong></td><td><strong>보안 도면 출력</strong></td><td>사내협력사 도면 접근 차단</td><td>사내협력사, 제품기술팀</td><td><span class="badge b-off">필수</span></td></tr>
+          <tr><td><strong>FR-02</strong></td><td><strong>워터마크 자동 삽입</strong></td><td>보안 무력화 (추적 불가)</td><td>IT센터, 경영진</td><td><span class="badge b-off">필수</span></td></tr>
+          <tr><td><strong>FR-03</strong></td><td><strong>출력/다운로드 이력 관리</strong></td><td>감사 추적 불가</td><td>IT센터, 경영진</td><td><span class="badge b-off">필수</span></td></tr>
+          <tr><td><strong>FR-04</strong></td><td><strong>출력 권한 체계</strong></td><td>열람/출력/다운로드 구분 없음</td><td>전체</td><td><span class="badge b-off">필수</span></td></tr>
+          <tr><td><strong>FR-05</strong></td><td><strong>제품코드/자재코드 검색</strong></td><td>도면번호로만 검색 가능</td><td>구매/생산팀</td><td><span class="badge b-warn">높음</span></td></tr>
+          <tr><td><strong>FR-06</strong></td><td><strong>사내협력사 접근 경로</strong></td><td>직접 접근 수단 없음</td><td>사내협력사</td><td><span class="badge b-warn">높음</span></td></tr>
+          <tr><td><strong>FR-07</strong></td><td><strong>출력 관리 대시보드</strong></td><td>출력 현황 파악 불가</td><td>IT센터</td><td><span class="badge" style="background:#eff6ff; color:#2563eb;">중간</span></td></tr>
+        </table>
+
+        <!-- 비기능 요구사항 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 비기능 요구사항</div>
+        <table class="dtable">
+          <tr><th>ID</th><th>구분</th><th>요구사항</th><th>상세</th></tr>
+          <tr><td><strong>NFR-01</strong></td><td>보안</td><td><strong>워터마크 위변조 방지</strong></td><td>서버 사이드 PDF 렌더링. 원본 파일 노출 금지.</td></tr>
+          <tr><td><strong>NFR-02</strong></td><td>보안</td><td><strong>이력 무결성</strong></td><td>append-only 로그. 삭제/수정 불가.</td></tr>
+          <tr><td><strong>NFR-03</strong></td><td>보안</td><td><strong>다운로드 정책 유지</strong></td><td>출력 기능이 다운로드 보안을 약화시키면 안 됨.</td></tr>
+          <tr><td><strong>NFR-04</strong></td><td>성능</td><td><strong>출력 3초 이내</strong></td><td>워터마크 삽입 포함. 50MB 이상도 10초 이내.</td></tr>
+          <tr><td><strong>NFR-05</strong></td><td>호환성</td><td><strong>Chrome/Edge 지원</strong></td><td>ActiveX 의존 제거. 모던 브라우저 필수.</td></tr>
+          <tr><td><strong>NFR-06</strong></td><td>호환성</td><td><strong>기존 API 유지</strong></td><td>/api/download.do, /api/view.do 인터페이스 하위 호환.</td></tr>
+        </table>
+
+        <!-- 기대 성과 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 기대 성과 (AS-IS → TO-BE 비교)</div>
+        <table class="dtable">
+          <tr><th>지표</th><th>AS-IS (현재)</th><th>TO-BE (개선 후)</th><th>효과</th></tr>
+          <tr><td><strong>제품기술팀 도면 배포 업무</strong></td><td>매일 상시 수작업</td><td>현업이 직접 셀프서비스</td><td style="color:#059669; font-weight:600;">업무 제거</td></tr>
+          <tr><td><strong>EP-Drive 중복 업로드</strong></td><td>건당 수동 업로드</td><td>공식 루트로 대체 → 제거</td><td style="color:#059669; font-weight:600;">100% 제거</td></tr>
+          <tr><td><strong>도면 출력 이력</strong></td><td>추적 불가</td><td>전건 자동 기록</td><td style="color:#059669; font-weight:600;">100% 추적</td></tr>
+          <tr><td><strong>워터마크</strong></td><td>없음</td><td>출력자/일시 자동 삽입</td><td style="color:#059669; font-weight:600;">유출 억제</td></tr>
+          <tr><td><strong>구매팀 도면 검색</strong></td><td>제품기술팀 의뢰 (수일)</td><td>자재코드로 직접 검색 (즉시)</td><td style="color:#059669; font-weight:600;">자체 해결</td></tr>
+          <tr><td><strong>보안 수준</strong></td><td>차단했지만 실질 보안 0%</td><td>열고 통제: 워터마크+이력+권한</td><td style="color:#059669; font-weight:600;">실질 보안 확보</td></tr>
+        </table>
+      </div>
+
+      <!-- ════════ 3단계: AS-IS / TO-BE 바이블 ════════ -->
+      <div id="page-p3-bible" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 03</div>
+          <h2>AS-IS / TO-BE 바이블</h2>
+          <p>충주 현업 인터뷰(04-14) + NPDM 미사용 발견(04-17) 반영. 시스템 역할 재정의, 배포 주체별 업무 4팀, EP-DRIVE/카톡 백도어 현실, 2트랙 TO-BE(NPDM 활성화 방향). 설계/개발의 판단 기준 문서.</p>
+          <div class="phase-date">최종 개정 2026-04-17 | 초판 04-15 | 충주 인터뷰 04-14</div>
+        </div>
+
+        <!-- ─── 1. 시스템 역할 현재 상태 ─── -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 1. 시스템 역할 — 현재 상태 (AS-IS)</div>
+        <p style="font-size:12px; color:#666; margin-bottom:14px; line-height:1.7;">내부 시스템 4개 + 우회 채널 1개. 역할 경계가 불명확해서 같은 도면을 찾기 위해 여러 시스템을 오가야 하는 상황.</p>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #6B7280;"><div class="card-label" style="color:#6B7280;">시스템</div><h3>PDM (레거시)</h3><p>과거 도면관리. 등록 · 출력/다운(보안PDF·일반PDF·CAD) · 리비전. 폐기 예정이었으나 IMOS 생성 도면이 NPDM에 수집 안 돼서 <strong>계속 사용 중</strong>. 주문품 도면/포장설명서는 여기서만 받을 수 있음.</p><span class="card-tag">유지 불가피</span></div>
+          <div class="card" style="border-left:3px solid #2563EB;"><div class="card-label" style="color:#2563EB;">시스템</div><h3>NPDM (신규 조회용)</h3><p>PDM 대체 목표로 만든 시스템. 그러나 <strong>IMOS 도면 누락 + 사용자 레거시 향수로 PDM과 병행사용</strong></p><span class="card-tag">전환 미완</span></div>
+          <div class="card" style="border-left:3px solid #2563EB;"><div class="card-label" style="color:#2563EB;">시스템</div><h3>PLM (설계 원천)</h3><p>코드 채번 · CREO 도면 생성 · ECO 관리. 설계의 원천. ECO 있는 표준품 도면은 여기서 받음. <strong>IMOS 흡수 못 함 → 배포 단절</strong>. EP에 링크 없음.</p><span class="card-tag">원천 유지</span></div>
+          <div class="card" style="border-left:3px solid #DC2626;"><div class="card-label" style="color:#DC2626;">우회 채널</div><h3>EP-DRIVE(★ 백도어)</h3><p><strong>공식 도면관리 시스템이 아님.</strong> 사내협력사가 도면 직접 다운받지 못하는 공백을 메우려고 제품기술팀이 PDM에서 다운받아 EP-DRIVE에 수동 업로드 → 사내협력사가 접속해서 사용. 공식 권한/이력 체계 밖.</p><span class="card-tag">비공식 배포</span></div>
+          <div class="card" style="border-left:3px solid #DC2626;"><div class="card-label" style="color:#DC2626;">우회 채널</div><h3>카톡/문자/이메일(★ 백도어)</h3><p><strong>공식 도면배포 시스템이 아님.</strong> NPDM의 공식 배포기능을 사용하지 않고, 외주처의 견적/생산가능여부를 확인하기 위한 비공식 도면 배포 창구, 권한/이력 체계 밖.</p><span class="card-tag">비공식 배포</span></div>
+        </div>
+
+        <!-- ─── 2. EP-DRIVE 백도어 심각성 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#dc2626;"></div> 2. EP-DRIVE 백도어 — 가장 큰 구조적 리스크</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>인터뷰로 드러난 실제 운영 모습</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:13px; color:#333; line-height:1.8; margin-bottom:12px;">사내협력사가 도면을 직접 열람/다운받지 못하는 상황을 커버하기 위해 <strong>제품기술팀이 PDM에서 도면을 내려받아 EP-DRIVE에 올리고, 사내협력사가 접속해 사용</strong>하는 구조가 일상적으로 운영 중. 편의 차원의 실무 해법이었지만 시스템 관점에서 네 가지 근본 문제 발생:</p>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px; color:#DC2626; font-weight:600;">① 권한 체계 이탈</div><div class="cfg-val">공식 권한 체계 밖에서 도면이 유통됨. 누구든 EP-DRIVE 접근만 되면 열람 가능</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px; color:#DC2626; font-weight:600;">② 유효본 분리</div><div class="cfg-val">원본(PDM/PLM) ↔ 배포본(EP-DRIVE) 분리. 원본 개정 시 EP-DRIVE 구버전이 현장에 남음</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px; color:#DC2626; font-weight:600;">③ 제품기술팀 부담</div><div class="cfg-val">수동 업로드 · 정리 · 구버전 교체를 지속적으로 떠안음 (단순반복 노동)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px; color:#DC2626; font-weight:600;">④ 이력 추적 불가</div><div class="cfg-val">누가/언제/무슨 목적으로 도면을 열람·출력·반출했는지 추적 체계 없음</div></div>
+          </div>
+        </div>
+
+        <!-- ─── 3. 배포 주체별 업무 (왜 도면이 필요한가) ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#d97706;"></div> 3. 배포 주체별 업무 — 왜, 어떻게 도면을 확보하고 있는가 (AS-IS)</div>
+        <p style="font-size:12px; color:#666; margin-bottom:14px; line-height:1.7;">"도면 배포"는 하나의 업무가 아님. 주체별로 목적·경로·고통이 다름. 설계도 주체별로 분리해야 함.</p>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>3.1 생산팀 → 협력업체 (재공품 외주견적)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">왜</div><div class="cfg-val">CAPA 초과/생산스펙 이슈로 재공품 외주 필요. 협력업체에 가능 여부/견적 의뢰 위해 도면 전달</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">어떻게 (현재)</div><div class="cfg-val">도면배포 요청서 → 제품기술팀 의뢰 → 회신 대기 → 카톡/메일로 1~4개 업체에 개별 발송 (워터마크는 무료 프로그램)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">고통</div><div class="cfg-val">BOM 수만큼 조회/다운 반복. <strong>도면 개정 여부 확신 불가</strong>(IMOS는 리비전 없이 덮어쓰기). 오류 책임 우려 → 제품기술팀 의뢰로 일원화 → 병목 심화</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px; color:#DC2626;">NPDM 배포</div><div class="cfg-val" style="color:#DC2626;">미사용. 카톡/메일이 실질 채널 (백도어)</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>3.2 구매팀 → 협력업체 (자재 외주견적)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">왜</div><div class="cfg-val">신규/단종자재의 생산 가능 여부, 단가 산정, 업체 선정 비교견적</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">어떻게 (현재)</div><div class="cfg-val">제품기술팀 요청 or PLM 직접 조회. 업체에 메일/카톡 발송. <strong>워터마크 없음</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">고통</div><div class="cfg-val">BOM 수만큼 반복 다운. 개정 확신 불가(같은 이유). 오래된 자재/목재 조회 불가. 연구소 직접 발송은 통제 밖</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px; color:#DC2626;">NPDM 배포</div><div class="cfg-val" style="color:#DC2626;">미사용. 카톡/메일이 실질 채널 (백도어)</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>3.3 품질보증팀 → 사내협력사 (현장 품질검사)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">왜</div><div class="cfg-val"><strong>사후 하자 검증</strong>(출고 후 품질검사 여부/포인트 확인) + <strong>현장 검사 활성화</strong>(실물 도면 기반 품질체크)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">어떻게 (현재)</div><div class="cfg-val">PDM/NPDM/EP-DRIVE 다채널에서 도면 수집 + ERP 부품규격표 → 매칭 바인딩 → 현장 배포 → 검사기록 수기 → 회수 → 3개월 보관. <strong>별도 인력 1인 고용, 일 11시간 작업</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">고통</div><div class="cfg-val">IMOS 도면 전후면 표기 불가(검사 치명적). PDM인지 NPDM인지 EP-DRIVE인지 하나씩 확인 필요. 바인딩 인력을 검사원으로 돌리고 싶음</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px; border-left:3px solid #dc2626;">
+          <div class="cfg-head" style="background:#FEF2F2;"><h4 style="color:#DC2626;">3.4 제품기술팀 — ★ 병목 허브 (현장 + 외주 이중 부담)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">왜 집중됐나</div><div class="cfg-val">① BOM 수만큼 반복 다운 ② 개정 진본 보장(다른 팀이 다운하면 구버전 유통 위험) → 오류 책임 우려로 모든 팀이 제품기술팀에 일원화 의뢰</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px; color:#DC2626;">병목 A: 현장 배포</div><div class="cfg-val">품질/사내협력사의 현장용 요청 → BOM별 PDM/PLM/ERP 오가며 다운 → 바인딩 → EP-DRIVE 수동 업로드(사내협력사용) → 구버전 교체</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px; color:#DC2626;">병목 B: 외주 배포</div><div class="cfg-val">생산(재공품 견적) + 구매(자재 견적) + <strong>자체 상품 견적</strong> → BOM별 다운 → 수동 워터마크 → 카톡/메일 발송. NPDM 외주배포 기능 미사용</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">결과</div><div class="cfg-val">전사 병목(배포 주체 <strong>4팀: 생산/구매/품질/제품기술</strong> 요청이 전부 여기로) + 본연의 설계 검토 밀림 + 휴먼에러(최신본 누락/잘못된 도면 배포)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px; color:#DC2626;">NPDM 배포</div><div class="cfg-val" style="color:#DC2626;"><strong>미사용</strong>. 전 배포가 비공식 채널(카톡/메일/EP-DRIVE)로 수행됨</div></div>
+          </div>
+        </div>
+
+        <!-- ─── 4. AS-IS 관계도 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#dc2626;"></div> 4. AS-IS 관계도 (FigJam)</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;">제품기술팀 병목, EP-DRIVE 백도어, 카톡/메일 우회의 세 가지 문제 구조를 한눈에. 클릭해서 FigJam에서 편집 가능.</p>
+            <a href="https://www.figma.com/online-whiteboard/create-diagram/92ad6baf-f021-403b-97fd-43b99d86773f?utm_source=claude_code&utm_content=edit_in_figjam" target="_blank" style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#DC2626; color:#fff; text-decoration:none; border-radius:8px; font-size:13px; font-weight:600;">AS-IS 관계도 FigJam에서 열기 &rsaquo;</a>
+          </div>
+        </div>
+
+        <!-- ─── 5. 문제 정의 (5개) ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#dc2626;"></div> 5. 진짜 문제 5가지</div>
+        <p style="font-size:12px; color:#666; margin-bottom:14px; line-height:1.7;">본 프로젝트의 진짜 문제는 <strong>"도면 다운로드가 불편하다"가 아니다.</strong></p>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">P1</div><div class="cfg-val">도면 열람·출력·전달의 <strong>공식 경로가 분절</strong> (PDM · NPDM · PLM · ERP · EP-DRIVE 동시 필요)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">P2</div><div class="cfg-val">EP-DRIVE가 <strong>사내협력사용 비공식 백도어</strong>로 일상 운영 중</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">P3</div><div class="cfg-val">제품기술팀이 <strong>수동 배포 허브</strong>로 병목. 단순반복 업무에 본연의 설계 업무 밀림</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">P4</div><div class="cfg-val">성격이 다른 <strong>"제조/검사용 도면"과 "견적요청용 도면 전달"이 같은 문제처럼 취급</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">P5</div><div class="cfg-val">최신 유효본 보장 · 배포/출력/전달 이력이 <strong>시스템적으로 통제되지 않음</strong></div></div>
+          </div>
+        </div>
+        <p style="font-size:13px; color:#DC2626; margin-top:12px; padding:12px 16px; background:#FEF2F2; border-radius:8px; font-weight:600;">→ 본 프로젝트는 "도면 기능 개선"이 아니라 <strong>도면 활용 목적별 운영체계 재설계</strong>가 핵심.</p>
+
+        <!-- ─── 6. TO-BE 2트랙 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 6. TO-BE — 2트랙 설계</div>
+        <p style="font-size:12px; color:#666; margin-bottom:14px; line-height:1.7;">기본 방향: 다운로드 자유화가 아니라 <strong>ERP-PDM 공식 경로 기반의 통제형 열람·출력 체계로 전환</strong>. 다운받을 이유 자체를 제거.</p>
+        <div class="cards">
+          <div class="card s-done" style="border-left:3px solid #16A34A;"><div class="card-label" style="color:#16A34A;">트랙 A</div><h3>제조·검사용 조회/출력 체계</h3><p><strong>대상</strong>: 생산 현장 · 품질보증팀<br/><strong>방식</strong>: ERP에서 공정·품목·오더·LOT 문맥으로 조회 → 권한자만 출력 → 워터마크(출력자/일시) 자동 · 출력 로그 자동 수집 · 파일 다운로드 차단<br/><strong>수반</strong>: 부품규격표+도면 함께 출력, 이동카드에 재공코드, IMOS 도면 전후면 표기 개선</p><span class="card-tag">기존 블루프린트 계승</span></div>
+          <div class="card s-done" style="border-left:3px solid #16A34A;"><div class="card-label" style="color:#16A34A;">트랙 B (★ 방향 수정 04-17)</div><h3>NPDM 외주배포 기능 활성화 + UX 개선</h3><p><strong>대상</strong>: 생산팀/구매팀/제품기술팀의 외주 견적용 도면 전달<br/><strong>발견</strong>: NPDM에 자재코드 기반 외주업체 열람 권한 부여 + 보안(이력/워터마크) 기능이 <strong>이미 존재하지만 미사용</strong><br/><strong>방식</strong>: NPDM 배포 기능 검증 → 카톡 대비 UX 격차 분석 → 부족한 부분만 보완 개발. 신규 시스템 전면 설계 대신 <strong>기존 기능 활성화 우선</strong><br/><strong>핵심</strong>: 카톡/메일 백도어를 NPDM 공식 경로로 전환. 권한/이력/워터마크 한 번에 확보</p><span class="card-tag">기존 기능 활용</span></div>
+        </div>
+
+        <!-- ─── 7. EP-DRIVE 처리 방향 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#7C3AED;"></div> 7. EP-DRIVE 단계적 축소</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">원칙</div><div class="cfg-val">공식 배포 채널이 아님. 공식 시스템이 커버 못 하는 공백만 <strong>예외 한정</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">제품기술팀 수동 업로드</div><div class="cfg-val">단계적 제거. NPDM/ERP 공식 경로에서 사내협력사 접근 가능하도록 대체</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">사내협력사용 제공 정책</div><div class="cfg-val">사유/범위를 문서화. 공식 시스템 권한 체계로 흡수</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">유효본 관리</div><div class="cfg-val">EP-DRIVE 수동 동기화 제거. 공식 시스템이 항상 최신 유효본을 내려줌</div></div>
+          </div>
+        </div>
+
+        <!-- ─── 8. 시스템 역할 재정의 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 8. 시스템 역할 재정의 (TO-BE)</div>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #6B7280;"><div class="card-label" style="color:#6B7280;">PDM</div><h3>IMOS 도면 업로드 전용</h3><p>디자이너/개발자만 권한. 일반 조회용 권한은 전면 제거. IMOS 생성 도면 보관/운영관리만 한정.</p></div>
+          <div class="card" style="border-left:3px solid #2563EB;"><div class="card-label" style="color:#2563EB;">NPDM</div><h3>표준 조회 채널</h3><p>현업 일반 사용자의 공식 조회 진입점. IMOS 도면 수집 이슈 해결 후 PDM 조회 권한 회수.</p></div>
+          <div class="card" style="border-left:3px solid #2563EB;"><div class="card-label" style="color:#2563EB;">PLM</div><h3>설계 원천</h3><p>코드 채번/ECO/CREO 도면 생성 원천 시스템. 현 역할 유지.</p></div>
+          <div class="card" style="border-left:3px solid #16A34A;"><div class="card-label" style="color:#16A34A;">ERP</div><h3>공식 업무 진입점</h3><p>제조/검사용 조회/출력 + 견적요청 도면 전달 모두 <strong>ERP에서 시작</strong>하도록 설계. 트랙 A, B의 진입 창구.</p></div>
+          <div class="card" style="border-left:3px solid #94A3B8;"><div class="card-label" style="color:#94A3B8;">EP-DRIVE</div><h3>우회 채널 (축소)</h3><p>공식 시스템 공백 보완용 예외 채널. 단계적 대체/축소 대상.</p></div>
+        </div>
+
+        <!-- ─── 9. TO-BE 관계도 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 9. TO-BE 관계도 (FigJam)</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;">제품기술팀 병목 해체 · 2트랙 분리 · 시스템 역할 재정의 후의 모습. 현업이 공식 시스템에서 직접 업무를 처리함.</p>
+            <a href="https://www.figma.com/online-whiteboard/create-diagram/2fc0e8bc-dd8c-450d-a871-6e92e681e0f1?utm_source=claude_code&utm_content=edit_in_figjam" target="_blank" style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; background:#16A34A; color:#fff; text-decoration:none; border-radius:8px; font-size:13px; font-weight:600;">TO-BE 관계도 FigJam에서 열기 &rsaquo;</a>
+          </div>
+        </div>
+
+        <!-- ─── 10. 프로젝트 재정의 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#6366f1;"></div> 10. 프로젝트 재정의 (한 문장)</div>
+        <div style="padding:20px 24px; background:linear-gradient(135deg,#eef2ff,#faf5ff); border-left:4px solid #6366f1; border-radius:12px; font-size:14px; line-height:1.9; color:#1e1b4b;">
+          <strong>본 프로젝트는 도면 출력 기능 추가나 다운로드 권한 확대가 아니라,</strong><br/>
+          ① EP-DRIVE/카톡/메일에 의존하던 비공식 도면 배포를 NPDM 공식 경로로 전환하고,<br/>
+          ② 제품기술팀의 수동 배포 병목을 제거하며 (4팀: 생산/구매/품질/제품기술 모두 직접 처리),<br/>
+          ③ 트랙 A(제조/검사용 조회/출력)와 트랙 B(외주 도면 배포 — NPDM 기능 활성화)로 분리하는<br/>
+          <strong style="color:#4338ca;">업무/시스템 재설계 프로젝트이다.</strong><br/>
+          <span style="font-size:12px; color:#6366f1;">(04-17 개정: NPDM에 외주배포 기능 이미 존재 확인. ERP 견적요청시스템 신규 설계 → NPDM 활용으로 방향 전환)</span>
+        </div>
+
+        <div style="margin-top:20px; padding:14px 18px; background:#FEF3C7; border-left:4px solid #D97706; border-radius:8px; font-size:12px; color:#78350F; line-height:1.8;">
+          <strong>설계 원칙 상기</strong> — 다운받아서 해결하는 게 아니라 시스템이 패키징된 기능으로 해결한다. 제품기술팀은 도면 원본만 관리하면 된다. 현업은 공식 시스템에서 직접 업무를 완결한다.
+        </div>
+
+        <!-- ─── 11. NPDM 미사용 기능 발견 (2026-04-17) ─── -->
+        <div style="margin-top:36px; padding:20px 24px; background:linear-gradient(135deg,#FEF2F2,#FFF7ED); border:2px solid #DC2626; border-radius:16px;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:2px; color:#DC2626; margin-bottom:8px;">2026-04-17 신규 발견</div>
+          <h3 style="font-size:20px; font-weight:700; color:#1e1b4b; margin-bottom:6px;">11. NPDM에 외주업체 도면배포 기능이 이미 존재한다</h3>
+          <p style="font-size:13px; color:#666; line-height:1.8;">NPDM에서 자재코드 검색 후 해당 코드를 열람할 외주업체 이메일을 지정하면, 업체가 해당 품목만 열람할 수 있는 기능이 <strong>이미 구현돼 있음</strong>. 보안 기능(열람 권한 제한, 이력 추적)도 내장. <strong>그런데 아무도 안 쓰고 있었다.</strong></p>
+          <p style="font-size:13px; color:#DC2626; font-weight:600; margin-top:10px;">→ 카카오톡 / 메일로 도면을 직접 전달하는 현재 방식은 "편의에 의한 백도어"였던 것이 확정.</p>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#DC2626;"></div> NPDM 기능 vs 실제 사용 비교</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:180px; font-weight:600;">항목</div><div class="cfg-val" style="min-width:240px;"><strong>NPDM 내장 기능</strong></div><div class="cfg-val"><strong>실제 현업 (AS-IS)</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">외주업체 도면 전달</div><div class="cfg-val" style="min-width:240px;">자재코드 검색 > 업체 이메일 지정 > 해당 품목만 열람 허용</div><div class="cfg-val" style="color:#DC2626;">PDM/PLM에서 다운 > 카톡/메일로 파일 직접 전송</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">접근 권한 통제</div><div class="cfg-val" style="min-width:240px;">지정된 업체만, 지정된 품목만 열람</div><div class="cfg-val" style="color:#DC2626;">파일 받으면 누구든 열람/복사/재배포 가능</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">열람 이력</div><div class="cfg-val" style="min-width:240px;">시스템에 자동 기록</div><div class="cfg-val" style="color:#DC2626;">추적 불가 (카톡 채팅방에만 존재)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">최신 유효본 보장</div><div class="cfg-val" style="min-width:240px;">시스템이 항상 최신본 제공</div><div class="cfg-val" style="color:#DC2626;">다운받은 시점의 버전 고정 (개정 반영 안 됨)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">워터마크</div><div class="cfg-val" style="min-width:240px;">내장 보안 기능</div><div class="cfg-val" style="color:#DC2626;">무료 프로그램으로 수동 (안 찍는 경우 다수)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">사용 현황</div><div class="cfg-val" style="min-width:240px; color:#DC2626; font-weight:600;">미사용</div><div class="cfg-val" style="color:#DC2626; font-weight:600;">전원 사용 중</div></div>
+          </div>
+        </div>
+        <p style="font-size:12px; color:#666; margin-top:8px; line-height:1.7;">미사용 추정 원인: 카톡이 드래그앤드롭으로 여러 장 한 번에 전송 가능 + "언제 가능?" 바로 확인 가능한 UX 편의. NPDM 기능 존재 자체를 모르는 경우도 있음. 편의가 보안을 이긴 전형적 사례.</p>
+
+        <!-- ─── 12. 부서별 도면 배포 요약표 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#6366f1;"></div> 12. 부서별 도면 배포 AS-IS 요약표</div>
+        <table style="width:100%; border-collapse:collapse; font-size:12px; line-height:1.7; margin-top:12px;">
+          <thead>
+            <tr style="background:#f8fafc; border-bottom:2px solid #e5e7eb;">
+              <th style="padding:10px 12px; text-align:left; width:100px;">부서</th>
+              <th style="padding:10px 12px; text-align:left; width:140px;">도면 요청 사유</th>
+              <th style="padding:10px 12px; text-align:left; width:160px;">현재 확보 방법</th>
+              <th style="padding:10px 12px; text-align:left; width:100px;">전달 대상</th>
+              <th style="padding:10px 12px; text-align:left; width:130px;">전달 방법</th>
+              <th style="padding:10px 12px; text-align:left; width:90px;">NPDM 배포 기능</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 12px; font-weight:600;">생산팀</td>
+              <td style="padding:10px 12px;">재공품 외주 생산 가능 여부/견적 (CAPA 초과, 생산스펙)</td>
+              <td style="padding:10px 12px;">제품기술팀에 도면배포 요청서 제출 > 회신 대기. 일부 직접 PDM 다운</td>
+              <td style="padding:10px 12px;">협력업체 (외주)</td>
+              <td style="padding:10px 12px; color:#DC2626;">카톡/메일로 파일 직접 전송</td>
+              <td style="padding:10px 12px; color:#DC2626; font-weight:600;">미사용</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 12px; font-weight:600;">구매팀</td>
+              <td style="padding:10px 12px;">신규/단종자재 생산 가능 여부, 단가 산정, 비교견적</td>
+              <td style="padding:10px 12px;">제품기술팀에 요청 or PLM 자재코드 직접 조회. 주문품은 직접 다운</td>
+              <td style="padding:10px 12px;">협력업체 (외주)</td>
+              <td style="padding:10px 12px; color:#DC2626;">카톡/메일로 파일 직접 전송. 워터마크 없음</td>
+              <td style="padding:10px 12px; color:#DC2626; font-weight:600;">미사용</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 12px; font-weight:600;">제품기술팀<br/><span style="font-size:10px; color:#999;">(병목 허브)</span></td>
+              <td style="padding:10px 12px;">위 2팀 요청 처리 + <strong>상품 견적용 자체 외주 전달</strong> + 도면 원본 관리/개정</td>
+              <td style="padding:10px 12px;">PDM/PLM/ERP에서 BOM마다 다운. 표준품은 PLM vs PDM 매건 판단</td>
+              <td style="padding:10px 12px;">생산/구매/품질 + <strong>외주업체(직접)</strong> + 사내협력사(EP-DRIVE)</td>
+              <td style="padding:10px 12px; color:#DC2626;">회신 (메일/카톡) + EP-DRIVE 수동 업로드 + 수동 워터마크</td>
+              <td style="padding:10px 12px; color:#DC2626; font-weight:600;">미사용</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f3f4f6;">
+              <td style="padding:10px 12px; font-weight:600;">품질보증팀</td>
+              <td style="padding:10px 12px;">현장 품질검사 + 하자 이력 추적 + 3개월 보관</td>
+              <td style="padding:10px 12px;">ERP 부품규격표 + PDM/NPDM 도면 + EP-DRIVE 확인 > 바인딩</td>
+              <td style="padding:10px 12px;">사내협력사 (현장)</td>
+              <td style="padding:10px 12px;">실물 출력 후 현장 배포 > 검사 기록 > 회수</td>
+              <td style="padding:10px 12px; color:#999;">해당 없음 (내부 현장용)</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 12px; font-weight:600;">생산현장<br/>(사내협력사)</td>
+              <td style="padding:10px 12px;">작업/조립/검사 시 도면 참조</td>
+              <td style="padding:10px 12px;">품질보증팀이 바인딩한 실물 수령 or EP-DRIVE 접속</td>
+              <td style="padding:10px 12px;">-</td>
+              <td style="padding:10px 12px;">-</td>
+              <td style="padding:10px 12px; color:#999;">접근 권한 없음</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px; color:#DC2626; font-weight:600; margin-top:10px; padding:8px 12px; background:#FEF2F2; border-radius:6px;">외주업체 대상 배포 3팀(생산/구매/제품기술) 모두 NPDM 배포 기능 미사용. 카톡/메일이 사실상 공식 채널화된 백도어.</p>
+
+        <!-- ─── 13. 부서별 내러티브 요약 ─── -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#6366f1;"></div> 13. 부서별 내러티브 요약</div>
+
+        <div class="cfg-card" style="margin-bottom:14px; border-left:3px solid #DC2626;">
+          <div class="cfg-head" style="background:#FEF2F2;"><h4 style="color:#DC2626;">제품기술팀 — 현장+외주 이중 병목, NPDM 미활용</h4></div>
+          <div class="cfg-body" style="font-size:12px; color:#333; line-height:1.8;">
+            <strong>현장 배포(병목 A)</strong>: 품질/사내협력사의 현장용 요청 접수 → BOM별 PDM/PLM/ERP 오가며 다운 → 바인딩 → EP-DRIVE 업로드 → 구버전 교체.<br/>
+            <strong>외주 배포(병목 B)</strong>: 생산(재공품) + 구매(자재) + 자체 상품견적 → BOM 수만큼 반복 다운 → 무료 프로그램 워터마크 → 카톡/메일 발송.<br/>
+            이 모든 과정에서 <strong>NPDM의 외주배포 기능(업체 이메일 지정 → 해당 품목만 열람 허용)은 단 한 번도 사용되지 않았다.</strong> 결과: 설계 검토 밀림 + 단순반복 노동 잠식 + 전원 비공식 채널 의존.
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>생산팀 — 재공품 외주견적, 카톡이 공식 채널</h4></div>
+          <div class="cfg-body" style="font-size:12px; color:#333; line-height:1.8;">
+            CAPA 초과/생산스펙 이슈로 재공품을 외주로 돌려야 할 때, 도면배포 요청서를 제품기술팀에 제출하고 회신을 기다린다. 받은 도면을 1~4개 협력업체에 카톡/메일로 개별 발송. 반제품/양산품목은 도면 자체를 받지 못하는 경우도 있다. 임가공 내외작 전환이 수시 발생해 BOM 전체가 필요한데, 수집 과정이 병목에 걸린다. 업체 회신/발송 이력은 카톡 채팅방에만 존재. <strong>NPDM에서 업체에 열람 권한을 부여하는 기능을 사용하면 이 과정 전체가 불필요해지지만, 기능 존재 자체를 모르고 있었다.</strong>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>구매팀 — 자재 견적, 보안 없는 도면 유통</h4></div>
+          <div class="cfg-body" style="font-size:12px; color:#333; line-height:1.8;">
+            신규/단종자재의 업체 선정을 위해 비교견적을 받아야 한다. 신규자재는 제품기술팀에 요청, 기존자재는 PLM에서 직접 조회하기도 한다. 도면을 메일/카톡으로 업체에 뿌리는데 <strong>워터마크가 없다.</strong> 어느 업체에 어떤 도면이 갔는지 이력도 없다. 연구소에서 업체에 직접 도면을 보내는 경우도 있어 통제가 안 된다. 오래된 자재/목재부품은 조회 자체가 안 되는 경우도 많다. 브랜드(일룸/퍼시스)별로 업체 선정 경로도 다르다. <strong>NPDM 배포 기능 사용 시 권한 통제 + 이력 + 워터마크가 한 번에 해결되지만, 역시 미사용.</strong>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>품질보증팀 — 실물 도면 수집/보관, 디지털 전환 대상</h4></div>
+          <div class="cfg-body" style="font-size:12px; color:#333; line-height:1.8;">
+            사내협력사에 실물 도면을 배포해 현장 품질검사 표기를 하게 한다. 검사 완료 도면을 회수해 3개월 보관 후 폐기. ERP 부품규격표 + PDM/NPDM 도면을 각각 뽑아 바인딩하는 작업이 선행. IMOS 도면은 전후면 표기가 안 돼 검사에 사실상 사용 불가. 부품규격표+도면 통합 출력, 이동카드에 재공코드 노출 등을 원하고 있다. 외주업체 직접 전달은 아니라 NPDM 배포 기능과 직접 연결은 안 되지만, <strong>현장 출력 체계(트랙 A)로 바인딩 수작업 제거가 가장 큰 개선 포인트.</strong>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>사내협력사 (생산현장) — 다채널 도면 수집 + 바인딩 노가다</h4></div>
+          <div class="cfg-body" style="font-size:12px; color:#333; line-height:1.8;">
+            품질검사 체크를 위해 도면이 필요하지만 접근 경로가 분산돼 있다. ERP 다운로드 차단 → PDM에 별도 접속해 다운 / NPDM은 접속 권한 없어 EP-DRIVE를 통해 다운 — <strong>PDM인지 NPDM인지 EP-DRIVE인지 하나하나 다 해봐야 한다.</strong> 다운받은 도면과 ERP 부품규격표를 매칭하여 바인딩 후 작업자별 인계. 검사기록은 도면 위에 수기 작성. <strong>이 업무만을 위한 별도 인력 1인 고용, 일 11시간 근무.</strong> 바인딩 인력을 검사원으로 전환하고 싶다는 것이 현장의 간절한 요청.
+          </div>
+        </div>
+
+        <!-- ─── 14. 발견 임팩트 ─── -->
+        <div style="margin-top:24px; padding:20px 24px; background:linear-gradient(135deg,#eef2ff,#faf5ff); border:2px solid #6366f1; border-radius:16px;">
+          <h3 style="font-size:16px; font-weight:700; color:#1e1b4b; margin-bottom:10px;">이 발견이 프로젝트에 미치는 영향</h3>
+          <ul style="font-size:13px; color:#333; line-height:2; padding-left:20px;">
+            <li><strong>트랙 B는 NPDM 기능 활성화로 방향 전환 완료 (04-17).</strong> 신규 ERP 견적요청시스템 전면 설계는 불필요. NPDM 기능 검증 + UX 격차 보완이 우선.</li>
+            <li><strong>카톡/메일 전달은 "편의에 의한 보안 우회"로 재정의.</strong> 인지 못 한 백도어. 보안 감사 보고 시 결정적 근거.</li>
+            <li><strong>"왜 안 썼는가"를 파고들면 진짜 UX 이슈 드러남.</strong> NPDM 기능이 카톡 대비 불편하면, TO-BE에서 그 UX 격차를 메워야 현업이 전환함.</li>
+            <li><strong>EP-DRIVE 축소 로드맵에 NPDM 연결.</strong> EP-DRIVE 대체 = NPDM 배포 기능 활성화 + UX 개선.</li>
+          </ul>
+          <p style="font-size:13px; color:#4338ca; font-weight:600; margin-top:12px;">다음 액션: NPDM 배포 기능 직접 테스트 > 카톡 대비 UX 격차 분석 > 현업에 기능 존재 안내 > 수용도 측정</p>
+        </div>
+      </div>
+
+      <!-- ════════ 3단계: 현업 인터뷰 질문지 ════════ -->
+      <div id="page-p3-interview" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 03</div>
+          <h2>현업 인터뷰 질문지</h2>
+          <p>충주 외근 현장 인터뷰용. 5개 팀별 맞춤 질문지 + 공통 프레임. 팀당 45분 구성 (오프닝 5분 · 본 질문 30~35분 · 마감 5분). 목표는 부서별 우회 루트의 실제 작동 방식 확인, TO-BE 수용도 측정, 보안 레벨 합의.</p>
+          <div class="phase-date">2026-04-14 충주 외근 예정</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 인터뷰 운영 원칙</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>설계 원칙을 인터뷰에서 반드시 검증</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:220px;">① 사용자 액션 최소화</div><div class="cfg-val">승인/신청 절차가 있으면 기존 우회 루트로 복귀 → "몇 클릭까지 허용 가능한가" 측정</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:220px;">② 파일 안 주되 출력은 허용</div><div class="cfg-val">다운로드 없이 인쇄만. Ctrl+P + PDF 저장도 워터마크 포함. 이 방식 수용 가능한지 직접 물어볼 것</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:220px;">③ 승인 절차 대신 권한</div><div class="cfg-val">권한 있는 사람만 출력 버튼 노출. "당신 팀 중 누가 권한을 가져야 하는가" 인물/직책 확인</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:220px;">④ 이력은 자동 수집</div><div class="cfg-val">누가/언제/어떤 도면/사유 자동 기록. 사용자에게 추가 입력 요구 최소화 (최초 출력 시 1클릭 사유)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:220px;">⑤ 워터마크는 자동</div><div class="cfg-val">서버에서 자동 삽입. 가독성 저하 안 되는 투명도/위치 합의 필요</div></div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#6366f1;"></div> 공통 오프닝 스크립트 (5분)</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">자기소개</div><div class="cfg-val">IT센터 김효섭. PDM 개선 프로젝트 PM. 팀장 박성진님 지시로 현장 방문</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">프로젝트 맥락</div><div class="cfg-val">"도면을 현장이 직접 뽑을 수 있게 하되, IT 보안도 챙기는 공식 루트를 만드는 것이 목표. 오늘 얘기가 실제 시스템에 반영됨"</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">녹음/메모 동의</div><div class="cfg-val">메모 동의 구두로 확인. 민감 사안은 익명화 약속</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">인터뷰 시간</div><div class="cfg-val">45분 계획. 중요 얘기 나오면 연장 협조 요청</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">금기</div><div class="cfg-val">"네/아니오"로 끝나지 않게 유도. 구체 사례/숫자/이름 유도. 답 유도 금지 (내가 생각하는 답을 말하지 않기)</div></div>
+          </div>
+        </div>
+
+        <!-- 팀 1: 제품기술팀 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#dc2626;"></div> 팀 1. 제품기술팀 (충주) — ★ 최우선</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>45분 · 가장 많은 정보가 나올 팀. 병목의 중심</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;"><strong>팀 특성</strong>: 모든 부서의 도면 요청이 집중되는 병목. PDM 다운로드 → EP-Drive 업로드 반복 수작업. 주문품은 출력→스캔→파일분리→코드매핑의 극심한 수작업. CUSTOM PLUS 자동설계 도면은 배포 방법 자체가 없음.</p>
+
+            <p style="font-size:13px; font-weight:600; color:#dc2626; margin-top:14px;">A. 현재 업무 프로세스 (10분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>하루에 몇 건의 도면 요청이 들어오시나요? (전화/메신저/메일/구두 각각)</li>
+              <li>요청 접수부터 EP-Drive 업로드까지 한 건당 평균 몇 분 걸리세요?</li>
+              <li>EP-Drive 용량이 부족해서 기존 파일 삭제한다는 얘기 들었는데, 어떤 기준으로 삭제하세요? 삭제한 파일 재요청은 얼마나 자주?</li>
+              <li>주문품 출력→스캔→파일분리→코드매핑 과정을 한 건 예시로 처음부터 끝까지 설명해주세요 (시간 측정 목적)</li>
+              <li>CUSTOM PLUS 자동설계 도면은 지금 어떻게 현장에 전달되나요? 전달 안 되면 어떤 방법으로 우회?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#dc2626; margin-top:14px;">B. 고통점 / 병목 (10분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>이 일 중에서 가장 하고 싶지 않은 업무 1순위 / 2순위는?</li>
+              <li>같은 도면을 여러 명이 다른 시간에 요청하는 경우가 얼마나 자주 있어요?</li>
+              <li>요청자가 정확한 도면번호를 모를 때는 어떻게 찾아드리나요? 평균 얼마 걸려요?</li>
+              <li>부품이동카드 출력 시 도면을 함께 출력하는 방식이 도움이 될 것 같으세요? 왜/왜 안?</li>
+              <li>이 업무 때문에 본래 해야 할 다른 업무(설계 검토 등)가 미뤄진 경험?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#dc2626; margin-top:14px;">C. 우회 루트 현실 (5분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>공식 루트 외에 비공식 루트(카톡/개인 메일/USB)로 도면이 나가는 경우도 있나요? 얼마나 자주?</li>
+              <li>퇴직자/부서이동자에게 가 있는 도면 회수는 현재 어떻게 관리?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#dc2626; margin-top:14px;">D. 개선 기대 (To-Be, 10분) ★</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li><strong>만약 사내협력사가 직접 도면을 출력할 수 있게 된다면 제품기술팀 업무 시간이 얼마나 줄어들 것 같으세요?</strong></li>
+              <li>EP-Drive 업로드 업무가 사라진다면 무엇으로 그 시간을 채우시겠어요? (본래 하고 싶었던 일이 있었나)</li>
+              <li>도면 배포 루트가 공식화되면 여전히 제품기술팀에 남아야 할 업무는 무엇?</li>
+              <li>CUSTOM PLUS 도면이 시스템에서 자동 배포되면 기대되는 변화?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#dc2626; margin-top:14px;">E. 보안/권한 수용도 (5분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>"파일은 못 주되 화면 보기 + 출력은 가능" 방식 어떠세요? 현장에서 받아들여질까요?</li>
+              <li>출력 시 워터마크(출력자/일시) 넣는 것 저항감 있을까요?</li>
+              <li>권한을 가진 사람만 출력 버튼이 보이는 구조 — 당신 팀의 누가 권한을 가져야 할까요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">꼭 확보할 것 (KPI용)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>□ 하루 도면 요청 건수 <strong>(숫자)</strong></li>
+              <li>□ 건당 소요 시간 <strong>(분)</strong></li>
+              <li>□ EP-Drive 파일 삭제 빈도/기준</li>
+              <li>□ 주문품 수작업 1건 소요시간</li>
+              <li>□ 다음 인터뷰 추천 인물 (현장 반장 / 사내협력사 대표)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 팀 2: 사내협력사 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#d97706;"></div> 팀 2. 사내협력사 (생산 현장)</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>45분 · 실 사용자. UX/수용도 검증 핵심</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;"><strong>팀 특성</strong>: ERP 생산계획으로 무엇을 만들지는 보이는데 도면 다운로드가 차단돼있음. 제품기술팀에 요청 → EP-Drive에서 받아 출력 → 생산. 품질검사 기록을 출력물 위에 수기. 실제 도면 유통은 이미 광범위함.</p>
+
+            <p style="font-size:13px; font-weight:600; color:#d97706; margin-top:14px;">A. 현재 업무 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>아침에 ERP로 생산계획 받으신 후 도면 확보까지 어떻게 진행하세요? 처음부터 끝까지</li>
+              <li>도면 한 건 필요할 때 요청부터 손에 쥐기까지 평균 몇 분/몇 시간?</li>
+              <li>도면 못 받아서 작업 대기한 경험? 한 달에 몇 번 정도?</li>
+              <li>현장에서 도면 확인할 때 주로 PC/프린터/태블릿/휴대폰 어디서 보세요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#d97706; margin-top:14px;">B. 품질 기록 / 도면 관리 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>출력된 도면 위에 품질검사 기록 적는 방식 — 한 도면에 몇 명이 기록을 남기나요?</li>
+              <li>기록 적힌 도면은 어디에 보관? 누가 수거?</li>
+              <li>도면 개정(Rev) 올라가면 어떻게 알게 되세요? 구버전 계속 쓰는 경우 있나요?</li>
+              <li>같은 도면을 여러 번 출력해야 하는 상황? (찢어짐/더러워짐/분실)</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#d97706; margin-top:14px;">C. 우회 루트 (5분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>EP-Drive 외에 도면 받는 경로가 있나요? (카톡/메일/USB/종이 사본)</li>
+              <li>협력사 간에 도면 공유하는 경우? (우리도 같은 거 만드는데 그 도면 좀…)</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#d97706; margin-top:14px;">D. 개선 기대 (10분) ★</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>ERP에서 생산계획 → 바로 도면 출력 버튼이 있다면 어떠세요?</li>
+              <li>도면이 파일로는 안 주어지고 화면에서 볼 수 있고 출력만 된다면 작업에 지장 있을까요?</li>
+              <li>모바일/태블릿으로 도면 확인이 가능하면 쓰시겠어요? 종이 출력 대체 가능?</li>
+              <li>품질검사 기록을 디지털로 (태블릿에서) 할 수 있다면 받아들여질까요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#d97706; margin-top:14px;">E. 보안 수용도 (4분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>출력물에 본인 이름/시간 워터마크 찍히면 저항감?</li>
+              <li>출력 사유를 1클릭(예: "생산용/품질검사용")으로 고르는 것 괜찮으세요?</li>
+              <li>회사 지급 단말(PC/태블릿)에서만 출력 가능하다면 어떠세요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">꼭 확보할 것</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>□ 도면 한 건 요청→확보 평균 시간</li>
+              <li>□ 월 도면 대기로 인한 작업 지연 횟수</li>
+              <li>□ 사용 단말 (PC/프린터 위치/태블릿 유무)</li>
+              <li>□ 모바일/태블릿 수용 가능 여부</li>
+              <li>□ 품질기록 디지털화 거부감 수준</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 팀 3: 구매/생산팀 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#059669;"></div> 팀 3. 구매/생산팀</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>45분 · 외주 견적/발주 흐름. 검색 UX 핵심</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;"><strong>팀 특성</strong>: 외주업체에 발주/견적 의뢰 시 도면 필요. PDM은 도면번호 기준 검색이라 제품/자재코드로 찾지 못해 제품기술팀에 의뢰. 외주업체와의 도면 전달도 여기 고유 이슈.</p>
+
+            <p style="font-size:13px; font-weight:600; color:#059669; margin-top:14px;">A. 외주 도면 유통 업무 (10분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>주당 몇 건의 외주 견적 요청이 나가고, 그 중 도면이 필요한 건은 몇 건?</li>
+              <li>보통 어떤 정보로 도면을 찾으세요? (제품코드/자재코드/도면번호/품명)</li>
+              <li>제품기술팀에 의뢰해서 도면 받기까지 평균 얼마?</li>
+              <li>외주업체에 도면 전달 방식? (이메일/EP-Drive/FTP/USB)</li>
+              <li>외주업체가 동일 도면을 여러 번 요청하는 경우 어떻게 처리?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#059669; margin-top:14px;">B. 검색 고통 (구체 사례, 10분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>최근 일주일 내 "도면 못 찾아서 시간 까먹은" 사례를 하나 상세히 말씀해주세요</li>
+              <li>ERP에서 자재/제품 코드는 있는데 PDM에서 도면 연결이 안 되는 경우 얼마나 자주?</li>
+              <li>색상별로 다른 도면이 있는 경우 구별은 어떻게 하세요?</li>
+              <li>구버전 도면으로 견적 나가서 문제된 경험?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#059669; margin-top:14px;">C. 외주업체 측 이슈 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>외주업체가 받은 도면을 얼마나 보관하는지 아시나요?</li>
+              <li>외주업체 도면 유출 의심 사례 있었나요?</li>
+              <li>외주업체도 PDM에 접근 가능하게 해달라는 요구 있었나요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#059669; margin-top:14px;">D. 개선 기대 (10분) ★</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>자재코드로 바로 도면 검색 가능하다면 하루 얼마나 단축될 것 같으세요?</li>
+              <li>외주업체용 제한 조회 계정(특정 자재만 열람+다운로드 차단)이 있다면 어떠세요?</li>
+              <li>외주업체가 도면을 받지 않고 링크로 "볼 수만" 있는 방식은?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#059669; margin-top:14px;">E. 보안 수용도 (2분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>외주업체에 나가는 도면에 업체명/일시 워터마크 찍히는 것 저항감?</li>
+              <li>외주업체의 다운로드/출력 이력이 IT에 기록되는 것 문제 없나요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">꼭 확보할 것</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>□ 주당 도면 필요 외주 건수</li>
+              <li>□ 검색 실패 사례 1건 이상</li>
+              <li>□ 외주업체 수 + 보안 요구 등급 가능 여부</li>
+              <li>□ 자재코드 검색 UX 중요도 순위</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 팀 4: 품질보증팀 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#2563EB;"></div> 팀 4. 품질보증팀</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>45분 · 종이 도면 수집/보관. 디지털화 가능성 타진</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;"><strong>팀 특성</strong>: 현장의 품질검사 기록이 적힌 도면을 수집/3개월 보관. 도면 배포 체인에 종속적. 도면이 출력되어야 일이 시작됨.</p>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">A. 현재 업무 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>월간 수집되는 기록 있는 도면 장수는 대략?</li>
+              <li>수집 → 정리 → 보관 과정 설명 (누가/어디에/얼마나)</li>
+              <li>3개월 보관 룰의 근거는? (법규/내부규정/관례)</li>
+              <li>3개월 후 처리 방식 (파기/스캔/외부보관)</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">B. 기록 가독성/품질 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>출력된 도면의 가독성 문제? (색상/선 굵기/치수 누락)</li>
+              <li>여러 명이 한 도면에 기록 남길 때 작성자 구분은 어떻게?</li>
+              <li>도면이 찢어지거나 더러워져서 재출력하는 경우?</li>
+              <li>구버전 도면으로 검사되어 문제된 사례?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">C. 추적성 요구 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>감사/고객대응 때 "이 제품의 품질기록" 추적 빈도?</li>
+              <li>추적 시 종이 도면에서 정보 찾는 데 평균 시간?</li>
+              <li>불량 발생 시 어떤 도면 버전으로 만들어졌는지 파악 현재 가능한가요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">D. 디지털화 수용도 (12분) ★</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>품질검사 기록을 태블릿에서 직접 도면에 필기하는 방식이 가능하다고 가정. 현장에서 받아들여질까요?</li>
+              <li>종이 보관이 완전히 없어지면 좋은 점 / 우려되는 점?</li>
+              <li>법적/규제 관점에서 전자기록이 인정되는지 확인해보셨나요?</li>
+              <li>감사 대응 시 시스템 조회가 더 편할 것 같으세요, 종이 파일이 더 편하실 것 같으세요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">E. 보안 / 접근 권한 (4분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>품질팀은 다운로드/출력 권한 필요하세요? 아니면 보기만?</li>
+              <li>외주업체/협력사에게 품질기록 공유 요구가 있나요?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">꼭 확보할 것</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>□ 월 수집 장수</li>
+              <li>□ 3개월 보관 규정 근거</li>
+              <li>□ 태블릿 디지털 기록 수용 여부</li>
+              <li>□ 법규 제약 확인 필요 여부</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 팀 5: IT센터 / 보안 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#7C3AED;"></div> 팀 5. IT센터 / 보안 담당 (본사 또는 충주 IT 지원)</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>45분 · 보안 딜레마 해소 + 운영 부담 현실 파악</h4></div>
+          <div class="cfg-body">
+            <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:12px;"><strong>팀 특성</strong>: 보안 이유로 ERP 도면 다운로드 차단 → 실제로는 EP-Drive로 전량 유통되는 역설. 차단 정책 유지 부담 vs 열고 통제로 전환 시 도전.</p>
+
+            <p style="font-size:13px; font-weight:600; color:#7C3AED; margin-top:14px;">A. 현재 보안 정책 운영 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>ERP 도면 차단 정책은 언제 도입됐고 도입 배경 사건이 있었나요?</li>
+              <li>현재 EP-Drive를 통해 도면이 유통되고 있음 — 인지하고 있었나요? 대응은?</li>
+              <li>EP-Drive 업로드/다운로드 이력은 수집되나요? 감사 가능한 수준?</li>
+              <li>도면 유출 의심/확정 사건이 실제로 있었나요? 처리 결과?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#7C3AED; margin-top:14px;">B. 보안 솔루션 경험 (8분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>퍼시스 내에 워터마크 솔루션 사용 중인 것 있나요? (DRM/SecuDoc 등)</li>
+              <li>프린트 이력 수집 솔루션 운영 중?</li>
+              <li>문서 보안 제품 도입 검토한 경험 있으시면 결과는?</li>
+              <li>PDM의 출력 이력을 별도 시스템/SIEM에 보내는 요구?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#7C3AED; margin-top:14px;">C. 이번 개선 방향 수용성 (12분) ★</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>"파일 다운로드 차단 + 인쇄만 허용 + 워터마크 + 이력" 방향 어떠세요?</li>
+              <li>인쇄도 PDF로 저장되면 화면 캡처처럼 유출 가능한데, 이 리스크 수용 가능?</li>
+              <li>이력 보존 기간 권장? (법적/내부규정 기준)</li>
+              <li>감사 대응 시 이력 조회 인터페이스 요구사항?</li>
+              <li>협력사(사내) 계정 발급/말소 프로세스 현황? 개선 가능성?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#7C3AED; margin-top:14px;">D. 컴플라이언스 / 감사 (10분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>ISO/K-ISMS/개인정보/영업비밀 등 관련 규제 중 도면에 적용되는 것?</li>
+              <li>외부 감사(고객/인증기관)에서 도면 관리에 대한 지적받은 경험?</li>
+              <li>현재 정책 변경 시 사전 검토/승인 경로?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#7C3AED; margin-top:14px;">E. 운영 부담 (4분)</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>현 차단 정책 예외 요청(승인 필요)이 월 몇 건?</li>
+              <li>이 개선이 IT 운영 부담을 늘릴까 줄일까? 전망?</li>
+            </ul>
+
+            <p style="font-size:13px; font-weight:600; color:#2563EB; margin-top:14px;">꼭 확보할 것</p>
+            <ul style="font-size:12px; color:#333; line-height:1.9; padding-left:20px;">
+              <li>□ 과거 유출 사건 유무 및 처리</li>
+              <li>□ 워터마크 기술 기존 운영 유무</li>
+              <li>□ 이력 보존 기간 권장</li>
+              <li>□ 법/규제 제약 체크</li>
+              <li>□ 정책 변경 승인 경로</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 공통 마감 -->
+        <div class="sec-title" style="margin-top:36px;"><div class="sec-dot" style="background:#6366f1;"></div> 공통 마감 스크립트 (5분)</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">가장 시급한 1가지</div><div class="cfg-val">"오늘 얘기 다 좋지만, 만약 한 가지만 먼저 된다면 무엇이 가장 도움이 될까요?"</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">다음 인터뷰 추천</div><div class="cfg-val">"이 이야기를 더 자세히 해줄 수 있는 분 추천해주실 수 있나요?"</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">후속 연락</div><div class="cfg-val">"프로토타입 나오면 먼저 보여드리고 싶은데 연락 가능할까요?" → 연락처/메신저 확보</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">감사</div><div class="cfg-val">"솔직하게 말씀해주셔서 감사. 반영된 결과 다시 공유드리겠습니다."</div></div>
+          </div>
+        </div>
+
+        <!-- 인터뷰 후 즉시 할 일 -->
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 인터뷰 직후 (충주 내 이동 중/당일 저녁)</div>
+        <div class="cards">
+          <div class="card s-prog"><div class="card-label">즉시 기록</div><h3>팀별 답변 요약 (5분 메모)</h3><p>기억 흐릿해지기 전에 각 팀 인터뷰 직후 5분 안에 핵심 3~5줄 요약. 녹음/메모 원본과 별개로.</p></div>
+          <div class="card s-prog"><div class="card-label">숫자 수집</div><h3>KPI 데이터 통합</h3><p>팀별 "꼭 확보할 것" 박스의 숫자들 엑셀 한 장에 정리. 개선 후 비교지표로 사용.</p></div>
+          <div class="card s-prog"><div class="card-label">인사이트</div><h3>예상 밖 발언 따로 기록</h3><p>질문에 없던 새 아이디어/문제 제기는 별도 파일로. 다음 인터뷰 질문에 추가.</p></div>
+          <div class="card s-prog"><div class="card-label">보고</div><h3>박성진님 보고 초안</h3><p>인터뷰 결과 → 현업 요청 vs 설계 원칙 매칭 표. 1~2일 내 초안 공유.</p></div>
+        </div>
+
+        <div style="margin-top:28px; padding:16px 20px; background:#FEF3C7; border-left:4px solid #D97706; border-radius:8px;">
+          <p style="font-size:13px; font-weight:600; color:#92400E; margin-bottom:6px;">현장 주의</p>
+          <ul style="font-size:12px; color:#78350F; line-height:1.8; padding-left:20px; margin:0;">
+            <li>설계 원칙 5개(액션 최소화/파일X 출력O/승인X 권한기반/이력 자동/워터마크 자동)를 직접 설명하지 말고 질문으로 검증 — 현업이 먼저 그 방향을 원한다고 말하게 유도</li>
+            <li>"안 된다"보다 "왜 그렇게 하시나요?"로 파고들기 — 우회 루트의 합리성을 이해해야 대체 가능한 설계 나옴</li>
+            <li>ITEM_ACNT 같은 기술 이슈는 인터뷰에서 꺼내지 말 것. 현업 용어로만 대화</li>
+            <li>약속은 조심. "이거 해드릴게요" 보다 "검토해보고 연락드릴게요"</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ════════ 4단계: 기술개발검토 ════════ -->
+      <div id="page-p4-techreview" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 04</div>
+          <h2>기술개발검토</h2>
+          <p>TO-BE 구현 가능성 검증. ERP(넥사크로+ClipReport)와 PDM(PDF.js+PDFBox) 양쪽 소스 분석 기반. "부품규격표+도면 합본 출력"이 기술적으로 되는가?</p>
+          <div class="phase-date">2026-04-20 집중 검토</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> TO-BE 출력 흐름 (목표)</div>
+        <div class="cfg-card">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 1</div><div class="cfg-val">ERP 공정진행정보(PPC0300) > <strong>부품규격표 출력</strong> 버튼 클릭</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 2</div><div class="cfg-val">넥사크로 > ClipReport > 부품규격표 PDF 생성</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 3</div><div class="cfg-val">BOM 기반으로 해당 품목의 도면을 PDM/NPDM에서 자동 수집</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 4</div><div class="cfg-val"><strong>부품규격표 + 도면</strong> 순서대로 합본 (다중 선택 시 반복: 규격표1+도면1, 규격표2+도면2, ...)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 5</div><div class="cfg-val">워터마크 자동 삽입 (출력자/일시/목적)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:60px;">Step 6</div><div class="cfg-val">PDF Viewer로 프리뷰 > <strong>인쇄만 허용, 다운로드 차단</strong></div></div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#dc2626;"></div> 4대 기술 과제 + 검토 결과</div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>과제 ④ 인쇄 허용 + 다운로드 차단</h4><span class="badge" style="background:#DCFCE7; color:#16A34A;">가능</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">현재 상태</div><div class="cfg-val">Ctrl+P 차단 + CSS @media print로 화면 숨김 = <strong>반대로 돼있음</strong> (인쇄 차단, 다운 허용)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">변경 방향</div><div class="cfg-val">① Ctrl+P 차단 해제 ② PDF.js 다운로드 버튼 숨김 ③ 우클릭/Ctrl+S 차단 유지 ④ @media print CSS 정상화</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">소스 위치</div><div class="cfg-val"><code>PDM: mozilla_pdf_js.jsp</code> (Ctrl+P 60-84줄, CSS 36-40줄, PDF.js 버튼 181-290줄)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">POC 진행중</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>과제 ③ 워터마크 자동 삽입</h4><span class="badge" style="background:#DCFCE7; color:#16A34A;">가능</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">현재 상태</div><div class="cfg-val">isSecured=false (2017년 비활성화). 워터마크 코드 없음. 무료 프로그램으로 수동 찍는 중</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">가능 근거</div><div class="cfg-val"><strong>PDFBox 1.8.2 이미 lib에 존재.</strong> ApiController에서 파일 → Base64 인코딩 사이에 PDFBox로 워터마크 삽입 가능</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">삽입 정보</div><div class="cfg-val">출력자 ID/이름, 출력 일시, 사용 목적(선택), 기한(선택) — 투명도 조절 가능</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">소스 위치</div><div class="cfg-val"><code>PDM: ApiController.java drawPdfViewer()</code> 548-549줄 (FileUtils.readFileToByteArray → Base64 사이)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">POC 진행중</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>과제 ① BOM 기반 도면 자동 수집</h4><span class="badge" style="background:#DCFCE7; color:#16A34A;">가능 (신규 API)</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">현재 상태</div><div class="cfg-val">ERP gfn_web_dwgno()가 품목 1건씩 PDM/NPDM 호출 → 뷰어 개별 팝업</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">변경 방향</div><div class="cfg-val">제품코드 전달 → BOM 전체의 도면 파일을 한 번에 반환하는 <strong>일괄 API 신규 개발</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">ERP 쪽</div><div class="cfg-val"><code>PPC0300_M01.xfdl.js</code> btn_print_1_onclick (1316줄) — REPRODERNO 수집 로직 활용</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">PDM 쪽</div><div class="cfg-val"><code>ApiController.java</code> download.do 참조하여 BOM 일괄 엔드포인트 설계</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val">API 설계 진행중</div></div>
+          </div>
+        </div>
+
+        <div class="cfg-card" style="margin-bottom:14px;">
+          <div class="cfg-head"><h4>과제 ② 부품규격표 + 도면 합본 출력</h4><span class="badge" style="background:#DCFCE7; color:#16A34A;">가능 (검증 완료)</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">목표</div><div class="cfg-val">[규격표1+도면1] [규격표2+도면2] ... 순서대로 합본된 단일 PDF 출력</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">현재 구조</div><div class="cfg-val">ClipReport가 부품규격표 PDF 생성 (PPC0300_R01.crf 템플릿) → viewer_post.jsp로 출력</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">합본 방법</div><div class="cfg-val">
+              <strong>시나리오 A (채택)</strong>: ClipReport <code>exportForPDF.jsp</code>로 규격표 PDF 서버 저장 → PDFBox merge (규격표 + 도면)<br/>
+              <strong>시나리오 B</strong>: ClipReport 내장 <code>ClipReportMergeExport</code>로 규격표끼리 합본 (외부 PDF 추가는 미지원 추정)<br/>
+              <strong>시나리오 C (폐기)</strong>: 넥사크로 순차 인쇄 → 합본 아님, 사용자 액션 증가</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">핵심 질문</div><div class="cfg-val" style="color:#16A34A; font-weight:600;">RESOLVED: ClipReport → PDF 파일 추출 <strong>가능 확인됨</strong></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">근거</div><div class="cfg-val">
+              <code>ClipReport4/export/exportForPDF.jsp</code> — 3가지 출력 모드:<br/>
+              &nbsp;&nbsp;1) <code>new File() + FileOutputStream</code> → 서버 파일 저장<br/>
+              &nbsp;&nbsp;2) <code>Content-Disposition: attachment</code> → 클라이언트 다운로드<br/>
+              &nbsp;&nbsp;3) <code>Content-Type: application/pdf</code> → 브라우저 인라인 뷰<br/>
+              <code>ClipReport4/export/keyToMergeExport/exportForMergePDF.jsp</code> — 다수 report_key 합본 PDF 내장<br/>
+              <code>Clip.jsp R09S1(SAVEReportToFile)</code> → 서버 로컬 파일 저장 API<br/>
+              <code>Clip.jsp R98(ImageBase64Export)</code> → Base64 이미지 내보내기</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">선례</div><div class="cfg-val">OPO0140 단가합의서 발송 (효섭 구현) — ClipReport UI 없이 서버에서 PDF 생성 → base64 → 전자결재 첨부. 동일 패턴 활용 가능.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">ERP 소스</div><div class="cfg-val"><code>PPC0300_M01.xfdl.js:1316~1370</code> (REPRODERNO 수집 → CommonReport4.xfdl 팝업)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:100px;">검토 상태</div><div class="cfg-val" style="color:#16A34A; font-weight:600;">기술 검증 완료 → POC 개발 착수 가능</div></div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#059669;"></div> 소스 참조 맵</div>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>ERP (workspaceInteliJ / pdm-개선-프로젝트 브랜치)</h4></div>
+          <div class="cfg-body" style="font-size:11px;">
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">화면 XML</div><div class="cfg-val"><code>src/main/nexacro/src/P/PC/PPC0300_M01.xfdl</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">화면 JS</div><div class="cfg-val"><code>src/main/webapp/fursysErp/src/P/PC/PPC0300_M01.xfdl.js</code> (1,475줄)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">Controller</div><div class="cfg-val"><code>src/main/java/fursysErp/P/PC/controller/PPC0300Controller.java</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">SQL</div><div class="cfg-val"><code>src/main/resources/egovframework/sqlmap/P/PC/PPC0300_SQL.xml</code></div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">공통 도면 호출</div><div class="cfg-val"><code>src/main/webapp/fursysErp/lib/CommUtil.xjs.js:1389~1482</code> (gfn_web_dwgno)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">ClipReport 템플릿</div><div class="cfg-val"><code>WEB-INF/clipreport4/crf/fursysErp/P/PC/PPC0300_R01.crf</code></div></div>
+          </div>
+        </div>
+        <div class="cfg-card" style="margin-top:10px;">
+          <div class="cfg-head"><h4>ClipReport4 PDF 추출 핵심 소스 (04/20 검증)</h4></div>
+          <div class="cfg-body" style="font-size:11px;">
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">PDF 직접 내보내기</div><div class="cfg-val"><code>ClipReport4/export/exportForPDF.jsp</code> — ClipReportExport.createExportForPDF() / 서버파일·다운로드·인라인뷰 3모드</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">합본 PDF 내보내기</div><div class="cfg-val"><code>ClipReport4/export/keyToMergeExport/exportForMergePDF.jsp</code> — ClipReportMergeExport.createForPDF(report_key[]) / 다수 보고서 합본</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">서버 파일 저장 API</div><div class="cfg-val"><code>Clip.jsp?ClipID=R09S1</code> → SAVEReportToFile / 서버 디렉토리에 PDF 저장</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">Base64 Export</div><div class="cfg-val"><code>Clip.jsp?ClipID=R98</code> → ImageBase64Export / Base64 인코딩 내보내기</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">PDF 옵션</div><div class="cfg-val">PDFOption: 암호설정, 복사방지(setNotAllowCopy), 원본이미지삽입, 인쇄매수 설정 가능</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">OPO0140 선례</div><div class="cfg-val"><code>OPO0140_M01/OPO0120</code> (효섭 구현) — 단가합의서: ClipReport UI 없이 PDF→base64→전자결재 첨부 패턴</div></div>
+          </div>
+        </div>
+        <div class="cfg-card" style="margin-top:10px;">
+          <div class="cfg-head"><h4>PDM (PDM_WEB)</h4></div>
+          <div class="cfg-body" style="font-size:11px;">
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">PDF Viewer</div><div class="cfg-val"><code>WEB-INF/jsp/api/mozilla_pdf_js.jsp</code> (인쇄/다운 제어)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">도면 서빙 API</div><div class="cfg-val"><code>ApiController.java:drawPdfViewer()</code> 404줄 (/api/view.do)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">도면 다운로드 API</div><div class="cfg-val"><code>ApiController.java:download()</code> 57줄 (/api/download.do)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">PDF 라이브러리</div><div class="cfg-val"><code>WEB-INF/lib/pdfbox-app-1.8.2.jar</code> (워터마크 + merge 가능)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:200px;">보안PDF (비활성)</div><div class="cfg-val"><code>ApiController.java:249</code> isSecured=false (2017년 비활성화)</div></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; padding:14px 18px; background:#DCFCE7; border-left:4px solid #16A34A; border-radius:8px; font-size:12px; color:#14532d; line-height:1.8;">
+          <strong>기술검토 핵심 판정 (04/20 업데이트)</strong>: <strong>4개 과제 모두 기술적으로 구현 가능 확인.</strong><br/>
+          - 인쇄제어/워터마크/BOM수집: 기존 라이브러리+소스 수정으로 구현 가능 (기존 판정 유지)<br/>
+          - <strong>합본 출력(과제②): 선행 과제 해결됨.</strong> ClipReport의 <code>exportForPDF.jsp</code>로 PDF 파일 추출 확인 (서버 파일 저장/다운로드/인라인뷰 3모드). <code>ClipReportMergeExport</code>로 규격표 간 합본도 가능. OPO0140 단가합의서에서 동일 패턴(UI 없이 PDF→base64) 이미 운영 검증 완료.<br/>
+          - <strong>합본 구현 경로</strong>: ClipReport로 부품규격표 PDF 서버 저장 → PDM에서 도면 PDF 수집 → PDFBox(1.8.2)로 [규격표+도면] 순서 merge → 워터마크 삽입 → 출력/뷰어 서빙<br/>
+          - <strong>다음 단계</strong>: POC 개발 착수 — ERP(PPC0300)에서 부품규격표+도면 합본 프로토타입 구현
+        </div>
+      </div>
+
+      <!-- ════════ 4단계: 설계 ════════ -->
+      <div id="page-p4-main" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 04</div>
+          <h2>설계 개요</h2>
+          <p>"제로 프로세스" 보안 출력 — 파일은 안 주되 출력은 허용. 사용자 행동 2클릭, 보안은 시스템이 알아서.</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <!-- 설계 원칙 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 설계 원칙 (최우선 준수)</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>업무가 더 늘어나면 안 된다</h4><span class="badge b-off">절대 원칙</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">사용자 액션 최소화</div><div class="cfg-val">승인/신청/발급요청서 등 절차가 많아지면 현업은 기존 우회 루트로 돌아감</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">파일은 안 주되 출력은 허용</div><div class="cfg-val">다운로드 없이 프린터 출력만 가능. PDF 저장해도 워터마크 포함.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">승인 절차 없음</div><div class="cfg-val">권한을 가진 사람에게만 출력 버튼이 보이는 구조. 별도 승인 프로세스 X.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">이력은 자동 수집</div><div class="cfg-val">누가/언제/무슨 도면/출력 사유 → 시스템이 자동 기록. 추가 행동 요구 없음.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:180px;">성과 EXIT</div><div class="cfg-val">현업: 가려운 곳 해소 / IT: 보안 챙김 / 프로세스: 업무 간소화 + 자동화</div></div>
+          </div>
+        </div>
+
+        <!-- 설계 철학 비교 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 설계 철학</div>
+        <div class="cfg">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:160px;">AS-IS (막고 무력화)</div><div class="cfg-val"><code class="old">다운로드/출력 무조건 차단</code> → EP-Drive로 우회 → 추적 불가 → 보안 0%</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:160px;">TO-BE (열고 통제)</div><div class="cfg-val"><code class="new">출력 허용 + 워터마크 + 이력 자동 수집</code> → 우회 불필요 → 전건 추적 → 보안 확보</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:160px;">핵심</div><div class="cfg-val" style="font-weight:600; color:#059669;">보안은 "차단"이 아니라 "추적"으로 확보한다. 열어주되, 누가 뭘 했는지 다 남긴다.</div></div>
+          </div>
+        </div>
+
+        <!-- 사용자 경험 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 사용자 경험 (2클릭 끝)</div>
+        <div class="cfg" style="background:#fff;">
+          <div class="cfg-body" style="padding:24px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px;">
+              <span style="background:#eff6ff; color:#2563eb; padding:10px 20px; border-radius:10px; font-weight:600;">1. [출력] 버튼 클릭</span>
+              <span style="color:#999; font-size:20px;">→</span>
+              <span style="background:#faf5ff; color:#7c3aed; padding:10px 20px; border-radius:10px; font-weight:600;">2. 출력 사유 선택</span>
+              <span style="color:#999; font-size:20px;">→</span>
+              <span style="background:#ecfdf5; color:#059669; padding:10px 20px; border-radius:10px; font-weight:600;">인쇄 대화상자 자동 오픈</span>
+            </div>
+            <div style="margin-top:16px; font-size:12px; color:#888; line-height:2;">
+              <strong style="color:#222;">자동으로 일어나는 일 (사용자 행동 없음):</strong><br>
+              &nbsp;&nbsp;- 서버에서 워터마크 PDF 생성 (출력자, 일시, 사유, "대외비")<br>
+              &nbsp;&nbsp;- 브라우저 인쇄 대화상자 오픈 (프린터만, 다운로드 아님)<br>
+              &nbsp;&nbsp;- 출력 이력 자동 기록 (T_DRAW_PRINT_LOG)<br>
+              &nbsp;&nbsp;- PDF 저장해도 워터마크 포함 (원본 절대 노출 안 됨)
+            </div>
+          </div>
+        </div>
+
+        <!-- 권한 구조 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 권한으로 제어 (승인 절차 없음)</div>
+        <table class="dtable">
+          <tr><th>권한</th><th>[출력] 버튼</th><th>뷰어 열람</th><th>대상</th></tr>
+          <tr><td><strong>T_ROLE.PT = 'P'</strong></td><td style="color:#059669; font-weight:600;">보임 (출력 가능)</td><td>가능</td><td>제품기술팀, 품질보증팀, 지정된 사내협력사</td></tr>
+          <tr><td><strong>T_ROLE.PT = 'V'</strong></td><td style="color:#999;">숨김 (열람만)</td><td>가능</td><td>일반 사용자</td></tr>
+          <tr><td><strong>T_ROLE.PT = 'X'</strong></td><td style="color:#999;">숨김</td><td>불가</td><td>미인가 사용자</td></tr>
+        </table>
+
+        <!-- 부서별 개선 효과 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> 부서별 변화</div>
+        <table class="dtable">
+          <tr><th>부서</th><th>AS-IS</th><th>TO-BE</th><th>효과</th></tr>
+          <tr><td><strong>사내협력사</strong></td><td>제품기술팀에 전화 → EP-Drive 대기</td><td>PDM 뷰어에서 직접 [출력] → 즉시 인쇄</td><td style="color:#059669; font-weight:600;">셀프서비스 (즉시)</td></tr>
+          <tr><td><strong>제품기술팀</strong></td><td>도면 찾기→다운→EP-Drive 업로드 (매일)</td><td>아무것도 안 해도 됨 (현업이 직접)</td><td style="color:#059669; font-weight:600;">업무 제거</td></tr>
+          <tr><td><strong>구매/생산팀</strong></td><td>제품기술팀에 "이 도면 뽑아달라" 의뢰</td><td>자재코드로 검색 → 직접 출력 → 외주 전달</td><td style="color:#059669; font-weight:600;">자체 해결</td></tr>
+          <tr><td><strong>품질보증팀</strong></td><td>종이 도면 수집 → 출처 불명</td><td>워터마크에 출력자/일시/사유 → 이력 명확</td><td style="color:#059669; font-weight:600;">추적 가능</td></tr>
+          <tr><td><strong>IT센터</strong></td><td>차단했지만 추적 불가 (보안 0%)</td><td>워터마크 + 이력 자동 수집 (보안 100%)</td><td style="color:#059669; font-weight:600;">실질 보안 확보</td></tr>
+        </table>
+
+        <!-- 기술 구현 요약 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#7c3aed;"></div> 기술 구현 요약</div>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">뷰어 변경</div>
+            <h3>mozilla_pdf_js.jsp 수정</h3>
+            <p>Ctrl+P 차단 유지 (직접 인쇄 방지). 권한자에게만 [출력] 버튼 표시. 클릭 시 사유 드롭다운 → 서버에 출력 요청.</p>
+          </div>
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">워터마크 생성</div>
+            <h3>ApiController + PDFBox (서버 사이드)</h3>
+            <p>원본 PDF 읽기 → 워터마크 레이어 합성(출력자/일시/사유/"대외비") → 워터마크 PDF를 새 창에서 인쇄 대화상자로 오픈. 원본 노출 없음.</p>
+          </div>
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">이력 자동 기록</div>
+            <h3>T_DRAW_PRINT_LOG (신규 테이블)</h3>
+            <p>출력 시 자동 INSERT: 사용자, 도면번호, 리비전, 출력 사유, IP, 일시. append-only 구조.</p>
+          </div>
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">관리자 화면</div>
+            <h3>출력 이력 조회 대시보드</h3>
+            <p>부서별/도면별/기간별 출력 현황. 비정상 대량 출력 감지. 성진님 보고용 통계.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 4단계: 화면 설계 ════════ -->
+      <div id="page-p4-ui" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 04</div>
+          <h2>화면 설계</h2>
+          <p>최소 변경으로 최대 효과. 기존 뷰어에 [출력] 버튼 하나 추가가 핵심.</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 변경 화면 (기존 수정)</div>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #dc2626;">
+            <div class="card-label" style="color:#dc2626;">핵심 변경 | mozilla_pdf_js.jsp (보안 뷰어)</div>
+            <h3>기존 뷰어에 [출력] 버튼 1개 추가</h3>
+            <p>
+              - Ctrl+P 차단 유지 (직접 인쇄 여전히 방지)<br>
+              - PT='P' 권한자에게만 <strong>[출력]</strong> 버튼 표시<br>
+              - 클릭 시 사유 드롭다운 표시 (검사용/생산참조/외주견적/기타)<br>
+              - 사유 선택 → 서버에서 워터마크 PDF 생성 → 새 창에서 인쇄 대화상자 자동 오픈<br>
+              - 다운로드 버튼은 없음. 파일 제공 안 함.
+            </p>
+          </div>
+          <div class="card" style="border-left:3px solid #dc2626;">
+            <div class="card-label" style="color:#dc2626;">변경 | ApiController.java</div>
+            <h3>출력용 API 2개 추가</h3>
+            <p>
+              - <code class="neutral">/api/print.do</code> — 워터마크 PDF 생성 + 인쇄 전용 페이지 반환<br>
+              - <code class="neutral">/api/print/log.do</code> — 인쇄 완료 시 이력 기록 (JS에서 afterprint 이벤트)
+            </p>
+          </div>
+          <div class="card" style="border-left:3px solid #dc2626;">
+            <div class="card-label" style="color:#dc2626;">변경 | 도면 검색</div>
+            <h3>제품코드/자재코드 검색 추가</h3>
+            <p>
+              - 기존: 도면번호(DRAW_NO)로만 검색<br>
+              - 추가: 제품코드(ITEMCD) / 자재코드(MATCD) 검색 경로<br>
+              - 구매/생산팀이 직접 도면을 찾을 수 있게 됨
+            </p>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 신규 화면 (관리자용만)</div>
+        <div class="cards">
+          <div class="card" style="border-left:3px solid #059669;">
+            <div class="card-label" style="color:#059669;">신규 | 출력 이력 대시보드 (관리자)</div>
+            <h3>누가 언제 뭘 출력했는지 한눈에</h3>
+            <p>
+              - 부서별/도면별/기간별 출력 현황<br>
+              - 비정상 대량 출력 감지<br>
+              - 성진님 보고용 통계 리포트<br>
+              - 사용자에게는 추가 화면 없음 (관리자 전용)
+            </p>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 인쇄 전용 페이지 동작 원리</div>
+        <div class="cfg">
+          <div class="cfg-body" style="font-size:13px; line-height:2; color:#555;">
+            <strong style="color:#222;">1. 사용자가 [출력] → 사유 선택</strong><br>
+            <strong style="color:#222;">2. 서버 (ApiController.java:548행 부근)</strong><br>
+            &nbsp;&nbsp;&nbsp;원본 PDF 읽기 → PDFBox로 워터마크 합성 → Base64 인코딩<br>
+            &nbsp;&nbsp;&nbsp;워터마크 내용: "대외비 | 김효섭 | 2026-04-10 17:30 | 검사용"<br>
+            <strong style="color:#222;">3. 인쇄 전용 JSP (신규: print_pdf.jsp)</strong><br>
+            &nbsp;&nbsp;&nbsp;워터마크 PDF를 PDF.js로 렌더링 → <code class="neutral">window.print()</code> 자동 호출<br>
+            &nbsp;&nbsp;&nbsp;인쇄 대화상자만 뜸. 페이지에 다운로드 버튼 없음.<br>
+            &nbsp;&nbsp;&nbsp;사용자가 "PDF로 저장" 선택해도 → 워터마크 포함된 PDF (원본 아님)<br>
+            <strong style="color:#222;">4. 인쇄 완료 후 (JS afterprint 이벤트)</strong><br>
+            &nbsp;&nbsp;&nbsp;서버에 이력 자동 전송 → T_DRAW_PRINT_LOG INSERT → 창 자동 닫힘
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 4단계: DB 설계 ════════ -->
+      <div id="page-p4-db" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 04</div>
+          <h2>DB 설계</h2>
+          <p>도면 발급 생애주기를 추적하기 위한 테이블 설계</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 신규 테이블: T_DRAW_PRINT_LOG (출력 이력)</div>
+        <table class="dtable">
+          <tr><th>컬럼</th><th>타입</th><th>필수</th><th>설명</th></tr>
+          <tr><td><strong>LOG_NO</strong></td><td>int (identity)</td><td>PK</td><td>로그 순번 (자동증가)</td></tr>
+          <tr><td>DRAW_NO</td><td>nvarchar(50)</td><td>Y</td><td>도면번호</td></tr>
+          <tr><td>DRAW_REV</td><td>int</td><td>Y</td><td>도면 리비전</td></tr>
+          <tr><td>FILE_NO</td><td>nvarchar(20)</td><td>Y</td><td>파일번호</td></tr>
+          <tr><td>PURPOSE_CD</td><td>nvarchar(10)</td><td>Y</td><td>출력 사유 (QC:검사용 / PR:생산참조 / VQ:외주견적 / ETC:기타)</td></tr>
+          <tr><td>USER_ID</td><td>nvarchar(20)</td><td>Y</td><td>출력자</td></tr>
+          <tr><td>DEPT_CD</td><td>nchar(7)</td><td>Y</td><td>출력자 부서</td></tr>
+          <tr><td>IP_ADDR</td><td>nvarchar(50)</td><td>N</td><td>접속 IP</td></tr>
+          <tr><td>SYS_DT</td><td>datetime</td><td>Y</td><td>출력 일시 (getdate())</td></tr>
+        </table>
+        <div style="font-size:12px; color:#dc2626; margin-top:8px; font-weight:500;">* append-only. UPDATE/DELETE 금지. 감사 추적(audit trail) 무결성 보장.</div>
+        <div style="font-size:12px; color:#888; margin-top:4px;">* 기존 T_DRAW_FILE_LOG(다운로드/조회 이력)는 유지. 출력 이력만 별도 관리.</div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> 기존 테이블 변경</div>
+        <table class="dtable">
+          <tr><th>테이블</th><th>변경 내용</th><th>사유</th></tr>
+          <tr><td><strong>T_ROLE</strong></td><td>PT 컬럼 추가 (nchar(1), 기본값 'X')<br>값: P(발급허용) / V(열람만) / X(접근불가)</td><td>발급 권한 분리</td></tr>
+          <tr><td><strong>T_USER</strong></td><td>변경 없음 — T_ROLE.PT로 제어</td><td>-</td></tr>
+          <tr><td><strong>T_DRAW_FILE_LOG</strong></td><td>기존 유지. 발급 관련 로그는 T_DRAW_ISSUE_LOG에 별도 관리</td><td>기존 시스템 영향 최소화</td></tr>
+        </table>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#d97706;"></div> 외부 DB 연결 변경 이력 (2026-04-10)</div>
+        <table class="dtable">
+          <tr><th>DS</th><th>구 접속정보</th><th>현 접속정보</th><th>상태</th></tr>
+          <tr><td><strong>PDM Main</strong></td><td>210.122.8.213:1672/pdm_test</td><td>10.0.1.184:1672/pdm (MSSQL)</td><td><span class="badge b-ok">연결됨</span></td></tr>
+          <tr><td><strong>EP Portal</strong></td><td>14.63.219.169:1672/portal</td><td>10.0.1.155:1672/portal (MSSQL)</td><td><span class="badge b-warn">DBSafer 차단</span></td></tr>
+          <tr><td><strong>ERP</strong></td><td>Sybase 192.9.201.203:4006/isbfdb</td><td>MSSQL 192.9.201.220:1672/isbfdb</td><td><span class="badge" style="background:#f3f4f6; color:#999;">주석 (미사용)</span></td></tr>
+          <tr><td><strong>PIMS</strong></td><td>Sybase 192.9.201.203:4006/ipbfdb</td><td>MSSQL 192.9.201.220:1672/<strong>isbfdb</strong></td><td><span class="badge b-ok">변경 적용</span></td></tr>
+        </table>
+        <div class="cfg">
+          <div class="cfg-head"><h4>PIMS DB 변경 상세</h4><span class="badge b-ok">2026-04-10 적용</span></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key">핵심 변경</div><div class="cfg-val">구 Sybase ipbfdb가 MSSQL <strong>isbfdb에 통합</strong>됨 (ERP prod 설정에서 확인)</div></div>
+            <div class="cfg-row"><div class="cfg-key">드라이버</div><div class="cfg-val"><code class="old">com.sybase.jdbc4.jdbc.SybDriver</code> <code class="new">com.microsoft.sqlserver.jdbc.SQLServerDriver</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">테이블 매핑</div><div class="cfg-val"><code class="old">s_iteminf</code> → <code class="new">TT_ITEMINF</code> | <code class="old">s_mathed</code> → <code class="new">TT_MATMST + TT_MATDTL</code> | <code class="old">p_stdbom</code> → <code class="new">TP_STDBOM</code></div></div>
+            <div class="cfg-row"><div class="cfg-key">PimsDao.java</div><div class="cfg-val">4개 메서드 전부 수정. 구 Sybase 쿼리는 주석으로 보존.</div></div>
+            <div class="cfg-row"><div class="cfg-key">주의</div><div class="cfg-val">s_mathed가 TT_MATMST(마스터) + TT_MATDTL(사업장별)로 분리. STORECD 기반 조인 필수.</div></div>
+          </div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> ERD 관계</div>
+        <div class="cfg">
+          <div class="cfg-body" style="font-size:13px; line-height:2; font-family:Consolas, monospace; color:#555;">
+            T_DRAW ──1:N──▶ T_DRAW_REV ──1:N──▶ T_DRAW_FILE<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1:N<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#059669; font-weight:700;">T_DRAW_ISSUE (신규)</span> ──1:N──▶ <span style="color:#059669; font-weight:700;">T_DRAW_ISSUE_LOG (신규)</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+            T_USER ◀──N:1── (ISSUE_USER_ID)&nbsp;&nbsp;&nbsp;&nbsp; T_ROLE ◀── (PT 권한 추가)
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 4단계: 인터페이스 설계 ════════ -->
+      <div id="page-p4-api" class="page">
+        <div class="phase-hero">
+          <div class="phase-num">PHASE 04</div>
+          <h2>인터페이스 설계</h2>
+          <p>도면 발급 체계의 API 설계 및 시스템 간 연동 규격</p>
+          <div class="phase-date">04/10 ~ 진행중</div>
+        </div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#059669;"></div> 신규 API (2개만)</div>
+        <table class="dtable">
+          <tr><th>엔드포인트</th><th>메서드</th><th>설명</th><th>파라미터</th></tr>
+          <tr><td><strong>/api/print.do</strong></td><td>POST</td><td>워터마크 PDF 생성 + 인쇄 전용 페이지</td><td>drawNo, drawRev, fileNo, purposeCd, userId, ssoKey</td></tr>
+          <tr><td><strong>/api/print/log.do</strong></td><td>POST</td><td>인쇄 완료 이력 기록</td><td>drawNo, drawRev, purposeCd (JS afterprint에서 호출)</td></tr>
+        </table>
+
+        <!-- 워터마크 생성 로직 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 워터마크 PDF 생성</div>
+        <div class="cfg">
+          <div class="cfg-head"><h4>서버 사이드 워터마크 (ApiController + PDFBox)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">라이브러리</div><div class="cfg-val"><code class="neutral">pdfbox-app-1.8.2.jar</code> (WEB-INF/lib에 이미 존재)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">워터마크 내용</div><div class="cfg-val">대각선 반투명: "대외비 | {출력자} | {일시} | {사유}"</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">처리</div><div class="cfg-val">원본 PDF → PDFBox 워터마크 합성 → Base64 → 인쇄 전용 JSP → window.print()</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:120px;">원본 보호</div><div class="cfg-val">원본 파일은 절대 클라이언트에 노출되지 않음. 워터마크 버전만 렌더링.</div></div>
+          </div>
+        </div>
+
+        <!-- ERP 연계 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#2563eb;"></div> ERP 연계</div>
+        <div class="cfg">
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">ERP 수정 필요?</div><div class="cfg-val" style="color:#059669; font-weight:600;">아니오. ERP의 gfn_web_dwgno()는 그대로. PDM 뷰어에 [출력] 버튼만 추가하면 ERP에서도 자동 반영.</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:140px;">연결 경로</div><div class="cfg-val">ERP PPC0200 [PDM 도면조회] → pdm.fursys.com/api/view.do → 뷰어 + [출력] 버튼</div></div>
+          </div>
+        </div>
+
+        <!-- 구현 순서 -->
+        <div class="sec-title"><div class="sec-dot" style="background:#6366f1;"></div> 구현 순서</div>
+        <div class="cards" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
+          <div class="card" style="border-left:3px solid #059669; border-top:2px solid #059669;">
+            <div class="card-label" style="color:#059669;">Sprint 1 (핵심)</div>
+            <h3>보안 출력 + 워터마크 + 이력</h3>
+            <p>뷰어에 [출력] 버튼 추가, PDFBox 워터마크, T_DRAW_PRINT_LOG, T_ROLE.PT 권한</p>
+          </div>
+          <div class="card" style="border-left:3px solid #2563eb;">
+            <div class="card-label" style="color:#2563eb;">Sprint 2 (검색)</div>
+            <h3>제품코드/자재코드 검색</h3>
+            <p>구매/생산팀이 직접 도면을 찾을 수 있도록 검색 경로 추가</p>
+          </div>
+          <div class="card" style="border-left:3px solid #7c3aed;">
+            <div class="card-label" style="color:#7c3aed;">Sprint 3 (관리)</div>
+            <h3>출력 이력 대시보드</h3>
+            <p>관리자 조회 화면, 통계, 보고용 리포트</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ 5단계 ════════ -->
+      <div id="page-p5-main" class="page">
+        <div class="phase-hero"><div class="phase-num">PHASE 05</div><h2>개발</h2><p>설계를 바탕으로 실제 코드를 작성하고 기능을 구현</p><div class="phase-date">05/12 ~ 06/06 (4주) | 예정</div></div>
+        <div class="empty-state"><div class="icon">&#128187;</div><h3>설계 완료 후 진행 예정</h3><p>개발 범위, 브랜치 전략, 코드 리뷰 기준 등을 포함합니다.</p></div>
+      </div>
+      <div id="page-p5-log" class="page">
+        <div class="phase-hero"><div class="phase-num">PHASE 05</div><h2>개발 이력</h2><p>기능별 개발 진행 상황과 커밋 이력 추적</p><div class="phase-date">05/12 ~ 06/06 | 예정</div></div>
+        <div class="empty-state"><div class="icon">&#128221;</div><h3>준비중</h3><p>기능별 개발 상태, 담당자, 완료일, 주요 변경 사항을 기록합니다.</p></div>
+      </div>
+
+      <!-- ════════ 6단계 ════════ -->
+      <div id="page-p6-main" class="page">
+        <div class="phase-hero"><div class="phase-num">PHASE 06</div><h2>테스트 계획</h2><p>기능 테스트, 통합 테스트, 사용자 수용 테스트 계획 수립</p><div class="phase-date">06/09 ~ 06/20 (2주) | 예정</div></div>
+        <div class="empty-state"><div class="icon">&#128300;</div><h3>개발 완료 후 진행 예정</h3><p>테스트 시나리오, 케이스, 환경, 일정 등을 계획합니다.</p></div>
+      </div>
+      <div id="page-p6-result" class="page">
+        <div class="phase-hero"><div class="phase-num">PHASE 06</div><h2>테스트 결과</h2><p>테스트 수행 결과 및 결함 관리</p><div class="phase-date">06/09 ~ 06/20 | 예정</div></div>
+        <div class="empty-state"><div class="icon">&#9989;</div><h3>준비중</h3><p>테스트 결과서, 결함 목록, 조치 결과를 관리합니다.</p></div>
+      </div>
+
+      <!-- ════════ 7단계 ════════ -->
+      <div id="page-p7-main" class="page">
+        <div class="phase-hero"><div class="phase-num">PHASE 07</div><h2>배포 및 안정화</h2><p>운영 서버 배포 후 안정화 기간 동안의 모니터링 및 이슈 대응</p><div class="phase-date">06/23 ~ 06/30 (1주) | 예정</div></div>
+
+        <div class="sec-title"><div class="sec-dot" style="background:#dc2626;"></div> 배포 전 원복 체크리스트 (로컬 개발용 임시 수정)</div>
+        <p style="font-size:12px; color:#666; margin-bottom:16px; line-height:1.7;">
+          로컬 개발환경 구동을 위해 임시로 건드린 항목. <strong style="color:#dc2626;">운영 배포 시 반드시 원복</strong> 또는 환경별 분기 처리 필요.
+          FTP 수동 배포 체계이므로 개별 파일 단위로 원복 상태 확인 후 업로드할 것.
+        </p>
+        <div class="cfg-card">
+          <div class="cfg-head"><h4>파일별 원복 대상 (2026-04-09 ~ 04-13 수정분)</h4></div>
+          <div class="cfg-body">
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">src/main/java/com/fursys/pdm/C.java</div><div class="cfg-val"><code>UPLOAD_PATH</code> 로컬 경로(<code>C:/development/PDM_WEB/WebContent/_upload</code>) → 운영 파일서버 공유경로(UNC)로 복원 또는 외부 설정으로 분리</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">WebContent/WEB-INF/pdm-database.xml</div><div class="cfg-val"><code>dataSource</code> 로컬 개발 DB(10.0.1.184:1672, hyoseop_kim 계정) → 운영 DB(210.122.8.213:1672 pdm_test 또는 실제 운영) 복원. 주석 블록 active/inactive 스왑</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">WebContent/WEB-INF/pdm-database.xml</div><div class="cfg-val"><code>dataSource_EP</code> 개발 EP(10.0.1.100:1433) → 운영 EP(10.0.1.155:1672 portal) 복원. ERP/PIMS bean 상태도 검증</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">src/main/java/com/fursys/pdm/account/AccountController.java</div><div class="cfg-val"><strong style="color:#dc2626;">sso() 메서드 전체 원복</strong>: 주석된 SSO 검증 블록(validateKey/useYn/roleYn) 복구. 라인 64~66의 <code>userId="hyoseop_kim"</code> 기본값 제거. 라인 76의 <code>SSO_KEY="1234"</code> → 정상 해시 재계산 로직으로 복원</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">src/main/java/com/fursys/pdm/account/SyncService.java</div><div class="cfg-val"><code>@Scheduled</code> 어노테이션 주석처리 → 원복 (EP DB 동기화 스케줄러)</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">src/main/resources/log4j.properties</div><div class="cfg-val">DEBUG/TRACE 추가 라인(<code>com.fursys.pdm</code>, <code>org.springframework.jdbc</code>, <code>DispatcherServlet</code>) 제거. <code>rootLogger=INFO</code> 유지</div></div>
+            <div class="cfg-row"><div class="cfg-key" style="width:240px;">WebContent/WEB-INF/classes/log4j.properties</div><div class="cfg-val">위와 동일. 클래스패스에 복사된 사본도 함께 원복</div></div>
+          </div>
+        </div>
+
+        <div class="sec-title" style="margin-top:28px;"><div class="sec-dot" style="background:#d97706;"></div> 배포 전 검증 항목</div>
+        <div class="cards">
+          <div class="card s-prog"><div class="card-label">형상 검증</div><h3>운영 WAR ↔ Git 리포 diff</h3><p>전산실 운영 PDM의 WAR/WEB-INF 스냅샷을 회수해서 현재 리포와 diff. 운영 hotfix가 Git에 missing이면 배포 후 기능 손실 발생.</p><span class="card-tag">필수</span></div>
+          <div class="card s-prog"><div class="card-label">파일서버</div><h3>운영 파일서버 접근 경로 확정</h3><p>T_DRAW_FILE의 PATH 컬럼 기준으로 실파일이 놓인 UNC/공유폴더 확인. 서비스 계정 권한, 문자셋, 마운트 방식 검증.</p><span class="card-tag">필수</span></div>
+          <div class="card s-prog"><div class="card-label">배포 방식</div><h3>FTP 수동 배포 경로/계정 인수</h3><p>자동 CI/CD 없음. 전임자로부터 FTP 서버 주소/계정/대상 디렉터리/덮어쓰기 순서 인수받기. 롤백용 원본 백업 필수.</p><span class="card-tag">필수</span></div>
+          <div class="card s-prog"><div class="card-label">세션/SSO</div><h3>EP 포털 SSO 발급 로직 검증</h3><p>운영 ssoKey는 15자리 날짜해시. EP 포털이 생성/전달하는지, AccountDao.validateKey가 정상 검증하는지 배포 직후 확인.</p><span class="card-tag">필수</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var el = document.getElementById('page-' + id);
+  if (el) el.classList.add('active');
+}
+function navPhase(el, pageId) {
+  document.querySelectorAll('.phase-item').forEach(function(p) { p.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.sub-item').forEach(function(s) { s.classList.remove('active'); });
+  showPage(pageId);
+  var txt = el.textContent.trim().split('\n')[0].trim();
+  document.getElementById('breadcrumb').innerHTML = 'PDM 개선 프로젝트 &rsaquo; <span>' + txt + '</span>';
+}
+function navSub(el, pageId) {
+  document.querySelectorAll('.sub-item').forEach(function(s) { s.classList.remove('active'); });
+  el.classList.add('active');
+  showPage(pageId);
+  var phaseEl = el.parentElement.previousElementSibling;
+  var phaseTxt = phaseEl ? phaseEl.textContent.trim().split('\n')[0].trim() : '';
+  var subTxt = el.textContent.trim();
+  document.getElementById('breadcrumb').innerHTML = 'PDM 개선 프로젝트 &rsaquo; ' + phaseTxt + ' &rsaquo; <span>' + subTxt + '</span>';
+}
+function toggleSub(phaseEl, subId) {
+  var sub = document.getElementById(subId);
+  document.querySelectorAll('.sub-items').forEach(function(s) { if (s.id !== subId) s.classList.remove('open'); });
+  sub.classList.toggle('open');
+}
+function toggleSidebar() {
+  var sb = document.querySelector('.sidebar');
+  var mn = document.querySelector('.main');
+  var btn = document.querySelector('.sidebar-toggle');
+  sb.classList.toggle('collapsed');
+  mn.classList.toggle('expanded');
+  btn.classList.toggle('shifted');
+}
+</script>
+</body>
+</html>
