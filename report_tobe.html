@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>PDM 도면배포 시스템 개선 보고서</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b; width:1920px; }
+
+/* ── Header ── */
+.header { background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%); padding:80px 120px 70px; position:relative; overflow:hidden; }
+.header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:4px; background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899); }
+.header-tag { color:#94a3b8; font-size:14px; font-weight:500; letter-spacing:4px; text-transform:uppercase; margin-bottom:20px; }
+.header h1 { color:#fff; font-size:56px; font-weight:900; line-height:1.2; margin-bottom:16px; letter-spacing:-1px; }
+.header .sub { color:#cbd5e1; font-size:22px; font-weight:400; margin-bottom:24px; }
+.header .meta { color:#64748b; font-size:15px; }
+.header .accent { color:#3b82f6; font-weight:600; }
+
+/* ── Common ── */
+.section { padding:80px 120px; }
+.section-title { font-size:36px; font-weight:800; margin-bottom:48px; letter-spacing:-0.5px; display:flex; align-items:center; gap:16px; }
+.section-title .badge { display:inline-flex; align-items:center; padding:6px 16px; border-radius:20px; font-size:14px; font-weight:600; letter-spacing:1px; }
+
+/* ── Overview ── */
+.overview { background:#f1f5f9; }
+.overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+.ov-card { background:#fff; border-radius:16px; padding:40px; box-shadow:0 1px 3px rgba(0,0,0,0.06); border-left:5px solid; }
+.ov-card h3 { font-size:22px; font-weight:700; margin-bottom:24px; }
+.ov-card li { font-size:16px; line-height:2.2; color:#475569; list-style:none; padding-left:24px; position:relative; }
+.ov-card li::before { content:''; position:absolute; left:0; top:14px; width:8px; height:8px; border-radius:50%; }
+.mission { border-color:#3b82f6; } .mission li::before { background:#3b82f6; }
+.status { border-color:#ef4444; } .status li::before { background:#ef4444; }
+
+/* ── Problems ── */
+.problems { background:#fff; }
+.prob-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.prob-card { background:#fff; border-radius:14px; padding:32px; border:1px solid #e2e8f0; border-top:4px solid; box-shadow:0 4px 16px rgba(0,0,0,0.04); }
+.prob-card .num { font-size:13px; font-weight:700; letter-spacing:2px; margin-bottom:8px; }
+.prob-card h4 { font-size:20px; font-weight:700; margin-bottom:14px; color:#1e293b; }
+.prob-card p { font-size:14px; line-height:1.9; color:#64748b; }
+.detail-table { width:100%; margin-top:12px; border-collapse:collapse; font-size:13px; }
+.detail-table td { padding:6px 10px; border-bottom:1px solid #f1f5f9; color:#475569; }
+.detail-table .dt-label { font-weight:600; color:#1e293b; width:140px; }
+.detail-table .dt-num { font-weight:700; text-align:right; width:110px; }
+.pc1 { border-top-color:#ef4444; } .pc1 .num { color:#ef4444; } .pc1 .dt-num { color:#ef4444; }
+.pc2 { border-top-color:#f97316; } .pc2 .num { color:#f97316; }
+.pc3 { border-top-color:#eab308; } .pc3 .num { color:#eab308; }
+.pc4 { border-top-color:#a855f7; } .pc4 .num { color:#a855f7; }
+.pc5 { border-top-color:#64748b; } .pc5 .num { color:#64748b; } .pc5 .dt-num { color:#dc2626; }
+.prob-card .evidence { margin-top:14px; border-radius:8px; overflow:hidden; border:1px solid #e2e8f0; }
+.prob-card .evidence img { width:100%; display:block; }
+.prob-card .evidence-caption { padding:6px 10px; font-size:11px; color:#94a3b8; background:#f8fafc; }
+
+/* ── TO-BE Flow ── */
+.tobe-flow { background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color:#fff; }
+.tobe-flow .section-title { color:#fff; }
+.compare-box { display:grid; grid-template-columns:1fr 60px 1fr; gap:0; margin-bottom:56px; align-items:start; }
+.compare-card { border-radius:16px; padding:32px; }
+.compare-asis { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); }
+.compare-asis h4 { color:#fca5a5; font-size:16px; font-weight:700; margin-bottom:16px; }
+.compare-asis .step-item { color:#f1f5f9; font-size:14px; line-height:2.2; padding-left:16px; border-left:2px solid rgba(239,68,68,0.3); margin-bottom:8px; }
+.compare-asis .step-item strong { color:#fca5a5; }
+.compare-arrow { display:flex; align-items:center; justify-content:center; font-size:36px; color:#475569; padding-top:80px; }
+.compare-tobe { background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); }
+.compare-tobe h4 { color:#93c5fd; font-size:16px; font-weight:700; margin-bottom:16px; }
+.compare-tobe .step-item { color:#f1f5f9; font-size:14px; line-height:2.2; padding-left:16px; border-left:2px solid rgba(59,130,246,0.3); margin-bottom:8px; }
+.compare-tobe .step-item strong { color:#93c5fd; }
+.flow-row { display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:48px; }
+.flow-step { width:260px; padding:28px 24px; border-radius:16px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); text-align:center; }
+.flow-step .step-num { font-size:12px; font-weight:600; letter-spacing:2px; margin-bottom:10px; }
+.flow-step h4 { font-size:18px; font-weight:700; margin-bottom:8px; }
+.flow-step p { font-size:13px; color:#94a3b8; line-height:1.6; }
+.flow-arrow { width:48px; display:flex; align-items:center; justify-content:center; color:#475569; font-size:28px; flex-shrink:0; }
+.s1 .step-num { color:#3b82f6; } .s1 { border-color:rgba(59,130,246,0.3); }
+.s2 .step-num { color:#06b6d4; } .s2 { border-color:rgba(6,182,212,0.3); }
+.s3 .step-num { color:#8b5cf6; } .s3 { border-color:rgba(139,92,246,0.3); }
+.s4 .step-num { color:#10b981; } .s4 { border-color:rgba(16,185,129,0.3); }
+.s5 .step-num { color:#f43f5e; } .s5 { border-color:rgba(244,63,94,0.3); }
+.highlight-row { display:flex; gap:24px; justify-content:center; }
+.hl-box { padding:16px 32px; border-radius:12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); font-size:16px; font-weight:600; text-align:center; }
+.hl-box span { color:#3b82f6; }
+
+/* ── Mapping ── */
+.mapping { background:#f8fafc; }
+.map-row { display:flex; align-items:center; gap:0; margin-bottom:20px; }
+.map-before { flex:1; padding:24px 28px; border-radius:14px; background:linear-gradient(135deg,#fef2f2,#fff1f2); border:1px solid #fecaca; }
+.map-before h4 { color:#dc2626; font-size:16px; font-weight:700; }
+.map-before p { color:#991b1b; font-size:13px; margin-top:4px; }
+.map-center { width:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 12px; flex-shrink:0; }
+.map-arrow-line { width:100%; height:2px; background:#cbd5e1; position:relative; }
+.map-arrow-line::after { content:''; position:absolute; right:-6px; top:-5px; border:6px solid transparent; border-left-color:#cbd5e1; }
+.map-tech { padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; background:#1e293b; color:#fff; white-space:nowrap; margin-bottom:8px; }
+.map-after { flex:1; padding:24px 28px; border-radius:14px; background:linear-gradient(135deg,#ecfdf5,#f0fdf4); border:1px solid #a7f3d0; }
+.map-after h4 { color:#059669; font-size:16px; font-weight:700; }
+.map-after p { color:#065f46; font-size:13px; margin-top:4px; }
+
+/* ── Sample ── */
+.sample { background:#fff; }
+.sample-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start; }
+.sample-card { border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+.sample-card .sample-head { padding:16px 24px; font-size:14px; font-weight:700; letter-spacing:1px; }
+.sample-card img { width:100%; display:block; }
+.sample-card .sample-desc { padding:16px 24px; font-size:13px; color:#64748b; line-height:1.7; background:#f8fafc; }
+.sample-embed { width:100%; height:500px; border:none; }
+
+/* ── Dept ── */
+.dept-changes { background:#f8fafc; }
+.dept-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.dept-card { border-radius:14px; padding:32px; border:1px solid #e2e8f0; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.03); }
+.dept-card h4 { font-size:18px; font-weight:700; margin-bottom:20px; padding-bottom:12px; border-bottom:2px solid; display:flex; align-items:center; gap:10px; }
+.dept-card .change-row { display:flex; gap:12px; margin-bottom:14px; align-items:flex-start; }
+.dept-card .change-label { flex-shrink:0; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; width:56px; text-align:center; margin-top:2px; }
+.label-before { background:#fee2e2; color:#dc2626; }
+.label-after { background:#dcfce7; color:#16a34a; }
+.dept-card .change-text { font-size:14px; line-height:1.7; color:#475569; }
+.dept-card .change-text strong { color:#1e293b; }
+.dept-card .time-save { margin-top:16px; padding:12px 16px; border-radius:10px; background:#f0fdf4; border:1px solid #bbf7d0; font-size:14px; color:#059669; font-weight:600; text-align:center; }
+
+/* ── PDM Role ── */
+.pdm-role { background:#fff; }
+.role-grid { display:grid; grid-template-columns:1fr 60px 1fr; gap:0; align-items:start; }
+.role-card { border-radius:16px; padding:36px; }
+.role-current { background:#fef2f2; border:1px solid #fecaca; }
+.role-current h4 { color:#dc2626; font-size:18px; font-weight:700; margin-bottom:16px; }
+.role-current li { font-size:14px; line-height:2; color:#991b1b; list-style:none; padding-left:20px; position:relative; }
+.role-current li::before { content:''; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#ef4444; }
+.role-future { background:#eff6ff; border:1px solid #bfdbfe; }
+.role-future h4 { color:#1d4ed8; font-size:18px; font-weight:700; margin-bottom:16px; }
+.role-future li { font-size:14px; line-height:2; color:#1e40af; list-style:none; padding-left:20px; position:relative; }
+.role-future li::before { content:''; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#3b82f6; }
+.role-arrow { display:flex; align-items:center; justify-content:center; font-size:36px; color:#94a3b8; padding-top:60px; }
+.role-callout { margin-top:32px; padding:20px 28px; border-radius:12px; background:#0f172a; color:#e2e8f0; font-size:15px; line-height:1.8; text-align:center; }
+.role-callout strong { color:#60a5fa; }
+
+/* ── Verify ── */
+.verify { background:#f8fafc; }
+.verify-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+.check-list { display:flex; flex-direction:column; gap:16px; }
+.check-item { display:flex; align-items:center; gap:16px; padding:20px 24px; border-radius:12px; background:#f0fdf4; border:1px solid #bbf7d0; }
+.check-icon { width:40px; height:40px; border-radius:50%; background:#059669; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; flex-shrink:0; }
+.check-text { font-size:15px; font-weight:600; color:#1e293b; }
+.check-sub { font-size:13px; color:#64748b; }
+.perf-card { background:#fff; border-radius:16px; padding:36px; border:1px solid #e2e8f0; }
+.perf-card h3 { font-size:20px; font-weight:700; margin-bottom:24px; color:#1e293b; }
+.perf-table { width:100%; border-collapse:collapse; }
+.perf-table th { text-align:left; padding:10px 14px; font-size:12px; font-weight:700; color:#64748b; letter-spacing:1px; border-bottom:2px solid #e2e8f0; }
+.perf-table td { padding:12px 14px; font-size:14px; border-bottom:1px solid #f1f5f9; font-variant-numeric:tabular-nums; }
+.perf-table tr:last-child td { border-bottom:none; }
+.perf-table .label { font-weight:600; color:#1e293b; }
+.perf-table .fast { color:#059669; font-weight:600; }
+.perf-callout { margin-top:20px; padding:16px 20px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:14px; color:#1e40af; font-weight:600; text-align:center; }
+
+/* ── Effects ── */
+.effects { background:linear-gradient(135deg,#1e293b,#0f172a); color:#fff; }
+.effects .section-title { color:#fff; }
+.effect-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; }
+.effect-card { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:48px 36px; text-align:center; }
+.effect-card .big-num { font-size:64px; font-weight:900; line-height:1; margin-bottom:8px; }
+.effect-card .big-label { font-size:18px; font-weight:600; color:#94a3b8; margin-bottom:8px; }
+.effect-card .big-detail { font-size:14px; color:#64748b; line-height:1.6; }
+.c-blue .big-num { color:#3b82f6; }
+.c-green .big-num { color:#10b981; }
+.c-rose .big-num { color:#f43f5e; }
+
+/* ── Roadmap ── */
+.roadmap { background:#fff; }
+.road-items { display:flex; flex-direction:column; gap:0; }
+.road-item { display:flex; align-items:flex-start; gap:24px; padding:24px 0; border-bottom:1px solid #f1f5f9; }
+.road-phase { width:100px; flex-shrink:0; text-align:center; }
+.road-phase .rd-num { font-size:13px; font-weight:700; letter-spacing:2px; margin-bottom:4px; }
+.road-phase .rd-dot { width:16px; height:16px; border-radius:50%; margin:8px auto; }
+.road-body { flex:1; }
+.road-body h4 { font-size:16px; font-weight:700; margin-bottom:4px; }
+.road-body p { font-size:13px; color:#64748b; }
+.road-status { width:120px; flex-shrink:0; text-align:center; padding:6px 14px; border-radius:8px; font-size:12px; font-weight:700; margin-top:4px; }
+.rs-done { background:#dcfce7; color:#16a34a; }
+.rs-now { background:#dbeafe; color:#1d4ed8; }
+.rs-next { background:#f1f5f9; color:#64748b; }
+
+/* ── Footer ── */
+.footer { background:#0f172a; padding:48px 120px; text-align:center; border-top:1px solid #1e293b; }
+.footer p { color:#475569; font-size:14px; line-height:2; }
+.footer .org { color:#94a3b8; font-weight:600; }
+</style>
+</head>
+<body>
+
+<!-- ══════ HEADER ══════ -->
+<div class="header">
+  <div class="header-tag">IMPROVEMENT REPORT</div>
+  <h1>PDM 도면배포 시스템<br>개선 보고서</h1>
+  <div class="sub">3개 시스템(<span class="accent">ERP</span> + <span class="accent">PDM</span> + <span class="accent">NPDM</span>) 연동 자동화 &mdash; 원클릭 합본 출력</div>
+  <div class="meta">2026.04 &nbsp;|&nbsp; 제조DT개발팀 김효섭</div>
+</div>
+
+<!-- ══════ 1. 프로젝트 개요 ══════ -->
+<div class="section overview">
+  <div class="section-title">프로젝트 개요 <span class="badge" style="background:#dbeafe; color:#1d4ed8;">OVERVIEW</span></div>
+  <div class="overview-grid">
+    <div class="ov-card mission">
+      <h3>미션</h3>
+      <ul>
+        <li>생산현장의 <strong>실물 도면 사용</strong>을 편리하게 지원</li>
+        <li>업무가 <strong>더 늘어나면 안 된다</strong> (자동화 우선)</li>
+        <li><strong>권한 기반 출력</strong> + 워터마크로 보안 확보</li>
+        <li><strong>우회 경로(백도어)</strong>를 체계적으로 억제</li>
+      </ul>
+    </div>
+    <div class="ov-card status">
+      <h3>현황 (AS-IS)</h3>
+      <ul>
+        <li>도면 서비스가 <strong>4곳으로 분산</strong> (PDM, NPDM, ERP, EP-DRIVE)</li>
+        <li><strong>백도어 3곳</strong> &mdash; 카톡, EP-DRIVE, 메일로 도면 유출</li>
+        <li><strong>5개 부서</strong>가 도면 배포에 고통</li>
+        <li>제품기술팀이 <strong>병목 허브</strong> (월 40건, 16시간/월 소요)</li>
+        <li>도면 출력관리 <strong>전담 인력 1인</strong> (일 11시간, 월 242시간 투입)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 2. AS-IS 핵심 문제 ══════ -->
+<div class="section problems">
+  <div class="section-title">AS-IS &nbsp;5가지 핵심 문제 <span class="badge" style="background:#fee2e2; color:#dc2626;">PAIN POINTS</span></div>
+  <div class="prob-grid">
+    <div class="prob-card pc1">
+      <div class="num">PROBLEM 01</div>
+      <h4>도면 출력 업무 과부하</h4>
+      <p>코드당 평균 도면 6개 &times; 개별 다운로드 반복<br>규격표 출력 + 도면 다운 + EP-DRIVE 업로드 + 바인딩 + 워터마크<br><strong>건당 약 24분 소요</strong></p>
+      <table class="detail-table">
+        <tr><td class="dt-label">표준품 요청</td><td>12월 27건 / 1월 37건 / 2월 41건</td><td class="dt-num">월평균 35건</td></tr>
+        <tr><td class="dt-label">주문품 요청</td><td>비정기 발생</td><td class="dt-num">월평균 5건</td></tr>
+        <tr><td class="dt-label">월 총 소요시간</td><td>40건 &times; 24분</td><td class="dt-num">약 16시간/월</td></tr>
+      </table>
+      <div class="evidence"><iframe src="img_request.pdf" style="width:100%; height:480px; border:none;"></iframe><div class="evidence-caption">실제 도면배포 요청서 (제품기술팀에 접수되는 양식)</div></div>
+    </div>
+    <div class="prob-card pc2">
+      <div class="num">PROBLEM 02</div>
+      <h4>EP-DRIVE 백도어</h4>
+      <p>비공식 공유폴더에 도면 수동 업로드<br>구버전 파일 방치 &rarr; 오출력 위험<br>보안 이력 추적 불가</p>
+      <div class="evidence"><img src="img_epdrive.jpg" alt="EP-DRIVE 실제 사례" /><div class="evidence-caption">실제 EP-DRIVE 도면 배포 화면</div></div>
+    </div>
+    <div class="prob-card pc3">
+      <div class="num">PROBLEM 03</div>
+      <h4>카톡/메일 도면 전달</h4>
+      <p>구매팀 &middot; 생산팀 &middot; 제품기술팀 모두 카톡 사용<br>파일 유출 경로 = 보안 사각지대<br>배포 이력 없음</p>
+      <div class="evidence"><img src="img_kakao.jpg" alt="카톡 도면 전달 실제 사례" /><div class="evidence-caption">실제 카톡 도면 전달 화면 (외부 협력업체)</div></div>
+    </div>
+    <div class="prob-card pc4">
+      <div class="num">PROBLEM 04</div>
+      <h4>가공라인 QC 미적용</h4>
+      <p>출력도면을 활용한 QC업무 skip (업무 부하)<br>포장처만 검사 &rarr; 품질 리스크 존재</p>
+      <div class="evidence"><img src="img_qc.jpg" alt="현장 QC 실제 사례" /><div class="evidence-caption">도면을 활용한 현장 품질검사 모습</div></div>
+    </div>
+    <div class="prob-card pc5">
+      <div class="num">PROBLEM 05</div>
+      <h4>인력 소모</h4>
+      <table class="detail-table">
+        <tr><td class="dt-label">도면 출력관리<br>전담 인력</td><td>1인 / 일 11시간 배치 (월 22일)<br>부품규격표 + PDM + NPDM 도면 수동 바인딩</td><td class="dt-num">242시간/월</td></tr>
+        <tr><td class="dt-label">제품기술팀<br>도면배포</td><td>주문품 담당 1명 + 표준품 담당 1명<br>건당 약 24분, 월 40건 처리</td><td class="dt-num">16시간/월</td></tr>
+        <tr><td class="dt-label">합계</td><td>도면 배포에 투입되는 순수 공수</td><td class="dt-num" style="font-size:15px;">258시간/월</td></tr>
+      </table>
+      <div class="evidence"><img src="img_internal.jpg" alt="사내협력사 도면 배포" /><div class="evidence-caption">사내협력사 도면 배포 실제 사례</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 2-1. 병목 구조 시각화 ══════ -->
+<div class="section" style="background:#0f172a; color:#fff;">
+  <div class="section-title" style="color:#fff;">제품기술팀은 왜 병목인가 <span class="badge" style="background:rgba(239,68,68,0.2); color:#fca5a5;">BOTTLENECK</span></div>
+
+  <!-- 3컬럼 그리드: 요청 → 허브 → 배포 -->
+  <div style="display:grid; grid-template-columns:380px 1fr 380px; gap:0; align-items:center;">
+
+    <!-- ── 좌측: 요청 유입 ── -->
+    <div>
+      <div style="font-size:13px; font-weight:700; color:#94a3b8; letter-spacing:2px; margin-bottom:20px; text-align:center;">요청 유입</div>
+      <div style="background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#fb923c;">구매팀</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">자재 외주견적용 도면 배포 요청서</div>
+      </div>
+      <div style="background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.3); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#facc15;">생산팀</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">재공품 외주견적용 도면 배포 요청서</div>
+      </div>
+      <div style="background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.3); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#c084fc;">품질보증팀</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">검사용 도면 요청</div>
+      </div>
+      <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:14px; padding:22px 24px;">
+        <div style="font-size:17px; font-weight:700; color:#34d399;">생산현장</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">포장처/가공처 부품규격표+도면 매일 요청</div>
+      </div>
+    </div>
+
+    <!-- ── 중앙: 화살표 + 허브 + 화살표 ── -->
+    <div style="display:flex; align-items:center; justify-content:center; gap:0; padding:0 8px;">
+      <!-- 좌측 화살표 묶음 -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; flex-shrink:0;">
+        <div style="width:80px; height:2px; background:linear-gradient(90deg, rgba(239,68,68,0.1), rgba(239,68,68,0.5)); position:relative;">
+          <div style="position:absolute; right:-4px; top:-4px; width:0; height:0; border:5px solid transparent; border-left-color:#ef4444; opacity:0.6;"></div>
+        </div>
+        <div style="font-size:11px; color:#fca5a5; font-weight:600; letter-spacing:1px;">요청서</div>
+        <div style="width:80px; height:2px; background:linear-gradient(90deg, rgba(239,68,68,0.1), rgba(239,68,68,0.5)); position:relative;">
+          <div style="position:absolute; right:-4px; top:-4px; width:0; height:0; border:5px solid transparent; border-left-color:#ef4444; opacity:0.6;"></div>
+        </div>
+      </div>
+
+      <!-- 중앙 원 -->
+      <div style="flex-shrink:0; text-align:center; padding:0 16px;">
+        <div style="width:240px; height:240px; border-radius:50%; background:radial-gradient(circle, rgba(239,68,68,0.18) 0%, rgba(239,68,68,0.04) 70%, transparent 100%); border:2px solid rgba(239,68,68,0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; margin:0 auto;">
+          <div style="position:absolute; inset:-8px; border-radius:50%; border:1px solid rgba(239,68,68,0.12); animation:pulse 2s ease-in-out infinite;"></div>
+          <div style="font-size:10px; font-weight:700; color:#ef4444; letter-spacing:3px; margin-bottom:6px;">BOTTLENECK</div>
+          <div style="font-size:22px; font-weight:900; color:#fff; margin-bottom:4px;">제품기술팀</div>
+          <div style="font-size:12px; color:#fca5a5; font-weight:600;">주문품 1명 + 표준품 1명</div>
+          <div style="margin-top:10px; padding:6px 14px; border-radius:8px; background:rgba(239,68,68,0.2); font-size:11px; color:#fca5a5; font-weight:600;">
+            월 40건 &times; 24분 = 16시간/월
+          </div>
+        </div>
+        <div style="margin-top:12px; font-size:12px; color:#64748b; line-height:1.6;">
+          모든 도면 요청이 이 팀을 경유<br>
+          <strong style="color:#fca5a5;">본업을 방해하는 배포 허브</strong>
+        </div>
+      </div>
+
+      <!-- 우측 화살표 묶음 -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; flex-shrink:0;">
+        <div style="width:80px; height:2px; background:linear-gradient(90deg, rgba(249,115,22,0.5), rgba(249,115,22,0.1)); position:relative;">
+          <div style="position:absolute; right:-4px; top:-4px; width:0; height:0; border:5px solid transparent; border-left-color:#f97316; opacity:0.6;"></div>
+        </div>
+        <div style="font-size:11px; color:#fdba74; font-weight:600; letter-spacing:1px;">배포</div>
+        <div style="width:80px; height:2px; background:linear-gradient(90deg, rgba(249,115,22,0.5), rgba(249,115,22,0.1)); position:relative;">
+          <div style="position:absolute; right:-4px; top:-4px; width:0; height:0; border:5px solid transparent; border-left-color:#f97316; opacity:0.6;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 우측: 배포 대상 ── -->
+    <div>
+      <div style="font-size:13px; font-weight:700; color:#94a3b8; letter-spacing:2px; margin-bottom:20px; text-align:center;">배포 대상</div>
+      <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#fca5a5;">외부 협력업체</div>
+        <div style="font-size:13px; color:#ef4444; margin-top:6px;">카톡/메일로 직접 전달 (보안 사각)</div>
+      </div>
+      <div style="background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.2); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#fdba74;">사내 협력업체</div>
+        <div style="font-size:13px; color:#f97316; margin-top:6px;">EP-DRIVE 수동 업로드 (백도어)</div>
+      </div>
+      <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#34d399;">포장처 (현장)</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">규격표+도면 바인딩 후 전달</div>
+      </div>
+      <div style="background:rgba(100,116,139,0.08); border:1px solid rgba(100,116,139,0.2); border-radius:14px; padding:22px 24px; margin-bottom:16px;">
+        <div style="font-size:17px; font-weight:700; color:#94a3b8;">가공처 (현장)</div>
+        <div style="font-size:13px; color:#64748b; margin-top:6px; text-decoration:line-through;">업무 부하로 배포 못함 (QC skip)</div>
+      </div>
+      <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:14px; padding:22px 24px;">
+        <div style="font-size:17px; font-weight:700; color:#93c5fd;">요청자 본인</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:6px;">메일/카톡 회신</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 하단 요약 -->
+  <div style="margin-top:48px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;">
+    <div style="padding:24px; border-radius:14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); text-align:center;">
+      <div style="font-size:32px; font-weight:900; color:#ef4444;">4곳</div>
+      <div style="font-size:14px; color:#fca5a5; margin-top:6px;">시스템 접속 필요<br>(PDM + NPDM + ERP + EP-DRIVE)</div>
+    </div>
+    <div style="padding:24px; border-radius:14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); text-align:center;">
+      <div style="font-size:32px; font-weight:900; color:#ef4444;">5곳</div>
+      <div style="font-size:14px; color:#fca5a5; margin-top:6px;">배포 대상 분산<br>(외부/사내/포장/가공/요청자)</div>
+    </div>
+    <div style="padding:24px; border-radius:14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); text-align:center;">
+      <div style="font-size:32px; font-weight:900; color:#ef4444;">3곳</div>
+      <div style="font-size:14px; color:#fca5a5; margin-top:6px;">백도어 경로<br>(카톡 + EP-DRIVE + 메일)</div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse {
+  0%, 100% { transform:scale(1); opacity:0.3; }
+  50% { transform:scale(1.15); opacity:0; }
+}
+</style>
+
+<!-- ══════ 3. TO-BE 전략 ══════ -->
+<div class="section tobe-flow">
+  <div class="section-title">TO-BE &nbsp;원클릭 자동화 전략 <span class="badge" style="background:rgba(59,130,246,0.2); color:#60a5fa;">SOLUTION</span></div>
+  <div class="compare-box">
+    <div class="compare-card compare-asis">
+      <h4>AS-IS 업무 흐름 (건당 ~24분)</h4>
+      <div class="step-item"><strong>1.</strong> ERP 부품규격표 출력 (ClipReport)</div>
+      <div class="step-item"><strong>2.</strong> PDM 접속 &rarr; 코드 검색 &rarr; BOM 확인</div>
+      <div class="step-item"><strong>3.</strong> PDM/NPDM 도면 개별 다운로드 <strong>&times; BOM 수 (6개)</strong></div>
+      <div class="step-item"><strong>4.</strong> EP-DRIVE에 신규 도면 <strong>수동 업로드</strong></div>
+      <div class="step-item"><strong>5.</strong> 다운받은 파일 <strong>조합 맞춰 바인딩</strong></div>
+      <div class="step-item"><strong>6.</strong> 워터마크 수작업 <strong>&times; 도면 수</strong></div>
+      <div class="step-item"><strong>7.</strong> 인쇄 &rarr; 현장 배포</div>
+    </div>
+    <div class="compare-arrow">&rarr;</div>
+    <div class="compare-card compare-tobe">
+      <h4>TO-BE 업무 흐름 (건당 ~1분)</h4>
+      <div class="step-item"><strong>1.</strong> ERP <strong>[부품규격표+도면 출력]</strong> 버튼 클릭</div>
+      <div class="step-item"><strong>2.</strong> 자동: 규격표 + 도면 일괄 수집 + 합본 + 워터마크</div>
+      <div class="step-item"><strong>3.</strong> 일괄 인쇄</div>
+      <div class="step-item" style="margin-top:24px; border-left-color:rgba(16,185,129,0.5);"><strong style="color:#6ee7b7;">끝.</strong> PDM 접속 불필요, EP-DRIVE 불필요, 개별 다운 불필요, 바인딩 불필요</div>
+    </div>
+  </div>
+  <div style="color:#94a3b8; font-size:14px; font-weight:600; letter-spacing:2px; margin-bottom:24px; text-align:center;">SYSTEM FLOW</div>
+  <div class="flow-row">
+    <div class="flow-step s1"><div class="step-num">STEP 01</div><h4>ERP PPC0300</h4><p>부품규격표+도면출력<br><strong>[신규 버튼]</strong><br>권한 제한 사용자만</p></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step s2"><div class="step-num">STEP 02</div><h4>ClipReport</h4><p>규격표 PDF<br>서버사이드 자동 생성</p></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step s3"><div class="step-num">STEP 03</div><h4>PDM API</h4><p>BOM 기반 일괄 수집<br>PDM &rarr; NPDM 자동 fallback</p></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step s4"><div class="step-num">STEP 04</div><h4>PDFBox</h4><p>규격표+도면 교차 합본<br>+ 워터마크 자동 삽입</p></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step s5"><div class="step-num">STEP 05</div><h4>일괄 인쇄</h4><p>합본 PDF 프리뷰<br>원클릭 인쇄 출력</p></div>
+  </div>
+  <div class="highlight-row">
+    <div class="hl-box"><span>3개 시스템</span> 자동 연동 (ERP + PDM + NPDM)</div>
+    <div class="hl-box">특정 사용자만 <span>권한 제한</span></div>
+    <div class="hl-box">워터마크 + 출력이력 <span>자동 기록</span></div>
+  </div>
+</div>
+
+<!-- ══════ 4. Before → After ══════ -->
+<div class="section mapping">
+  <div class="section-title">Before &rarr; After &nbsp;문제별 해결 매핑 <span class="badge" style="background:#dcfce7; color:#16a34a;">TRANSFORMATION</span></div>
+  <div class="map-row">
+    <div class="map-before"><h4>도면 개별 다운로드 &times; BOM 수</h4><p>PDM/NPDM 접속 &rarr; 코드 검색 &rarr; 품목마다 클릭 &rarr; 다운로드 &rarr; 저장 반복 (6회+)</p></div>
+    <div class="map-center"><div class="map-tech">PDM API + BOM 자동수집</div><div class="map-arrow-line"></div></div>
+    <div class="map-after"><h4>원클릭 일괄 수집</h4><p>ERP 버튼 1번 &rarr; BOM 전체 도면 자동 수집 (PDM + NPDM fallback)</p></div>
+  </div>
+  <div class="map-row">
+    <div class="map-before"><h4>수동 바인딩 + 워터마크 수작업</h4><p>규격표 + 도면 파일 조합 맞춰 바인딩 + 무료 프로그램으로 워터마크 반복</p></div>
+    <div class="map-center"><div class="map-tech">PDFBox 자동 합본</div><div class="map-arrow-line"></div></div>
+    <div class="map-after"><h4>교차 합본 + 워터마크 자동</h4><p>규격표1+도면1+규격표2+도면2 자동 교차 합본, 워터마크 자동 삽입</p></div>
+  </div>
+  <div class="map-row">
+    <div class="map-before"><h4>EP-DRIVE 배포 업무</h4><p>PDM/NPDM 도면 다운 &rarr; EP-DRIVE에 수동 업로드 + 구버전 교체 + 코드별 관리</p></div>
+    <div class="map-center"><div class="map-tech">ERP 직접 출력</div><div class="map-arrow-line"></div></div>
+    <div class="map-after"><h4>EP-DRIVE 업무 소멸</h4><p>ERP에서 바로 출력 가능 &rarr; EP-DRIVE 업로드/검색/관리 전부 불필요</p></div>
+  </div>
+  <div class="map-row">
+    <div class="map-before"><h4>카톡/메일로 도면 직접 전달</h4><p>3개 팀 모두 카톡으로 협력업체에 도면 전달 (보안 사각지대)</p></div>
+    <div class="map-center"><div class="map-tech">NPDM 배포시스템</div><div class="map-arrow-line"></div></div>
+    <div class="map-after"><h4>권한 관리 + 이력 추적 배포</h4><p>NPDM 사용 활성화 + 교육, 체계적 배포 &rarr; 카톡 우회 억제</p></div>
+  </div>
+  <div class="map-row">
+    <div class="map-before"><h4>가공라인 출력도면 활용 QC 미적용</h4><p>도면 출력 업무 부하 &rarr; 가공처 QC업무 skip</p></div>
+    <div class="map-center"><div class="map-tech">자동합본 부하 해소</div><div class="map-arrow-line"></div></div>
+    <div class="map-after"><h4>가공라인 도면 배포 신규 적용</h4><p>출력 부담 제거 &rarr; 가공처에도 도면 배포 가능 &rarr; QC 범위 확대</p></div>
+  </div>
+</div>
+
+<!-- ══════ 5. 기대 효과 (앞으로 이동) ══════ -->
+<div class="section effects">
+  <div class="section-title">기대 효과 <span class="badge" style="background:rgba(16,185,129,0.2); color:#34d399;">IMPACT</span></div>
+  <div class="effect-grid">
+    <div class="effect-card c-blue">
+      <div class="big-num">96%</div>
+      <div class="big-label">업무 시간 절감</div>
+      <div class="big-detail">제품기술팀: 월 16시간 &rarr; 40분<br><strong style="color:#3b82f6;">월 15.3시간 회수</strong><br><span style="font-size:12px; color:#94a3b8;">연 약 190만원 (최저시급 기준)</span></div>
+    </div>
+    <div class="effect-card c-green">
+      <div class="big-num">1명</div>
+      <div class="big-label">인력 절감</div>
+      <div class="big-detail">도면 출력관리 전담 인력 해소<br><strong style="color:#10b981;">월 242시간 &rarr; 0시간</strong><br><span style="font-size:12px; color:#94a3b8;">연 약 4,040만원 (최저시급 기준)</span></div>
+    </div>
+    <div class="effect-card c-rose">
+      <div class="big-num">3곳</div>
+      <div class="big-label">백도어 억제</div>
+      <div class="big-detail">카톡 &middot; EP-DRIVE &middot; 메일<br>우회 경로 체계적 억제<br><strong style="color:#f43f5e;">도면 유출 리스크 감소</strong></div>
+    </div>
+  </div>
+  <div style="margin-top:24px; padding:20px 32px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); text-align:center;">
+    <span style="font-size:28px; font-weight:900; color:#10b981;">연간 총 절감 효과: 약 4,230만원 / 연 3,086시간</span>
+    <div style="font-size:13px; color:#94a3b8; margin-top:8px;">인력 4,040만원(월 242h) + 업무시간 190만원(월 15.3h) &mdash; 가공라인 QC 확대 등 정성적 효과 별도</div>
+  </div>
+</div>
+
+<!-- ══════ 6. 산출물 샘플 ══════ -->
+<div class="section sample">
+  <div class="section-title">산출물 샘플 <span class="badge" style="background:#fef3c7; color:#92400e;">SAMPLE OUTPUT</span></div>
+  <div class="sample-grid">
+    <div class="sample-card">
+      <div class="sample-head" style="background:#eff6ff; color:#1d4ed8;">AS-IS: 부품규격표 (도면 없이 단독 출력)</div>
+      <iframe class="sample-embed" src="sample_asis_spec.pdf"></iframe>
+      <div class="sample-desc">현재: 부품규격표만 단독 출력 &rarr; 도면은 PDM/NPDM에서 따로 개별 다운 &rarr; 수동 바인딩 필요</div>
+    </div>
+    <div class="sample-card">
+      <div class="sample-head" style="background:#ecfdf5; color:#059669;">TO-BE: 부품규격표 + PDM + NPDM 도면 합본 결과</div>
+      <iframe class="sample-embed" src="sample_merged.pdf"></iframe>
+      <div class="sample-desc">개선: 규격표 + PDM도면 + NPDM도면이 자동 교차 합본 + 워터마크 자동 삽입<br>
+      <strong>[규격표1] [도면1] [규격표2] [도면2] ...</strong> 순서로 합본 &rarr; 원클릭 인쇄</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 6. 부서별 업무 변경 ══════ -->
+<div class="section dept-changes">
+  <div class="section-title">부서별 업무 변경 <span class="badge" style="background:#e0e7ff; color:#4338ca;">BY DEPARTMENT</span></div>
+  <div style="margin-bottom:36px; padding:28px 36px; border-radius:16px; background:linear-gradient(135deg, #eff6ff, #f0fdf4); border:1px solid #bfdbfe; display:flex; align-items:center; gap:32px;">
+    <div style="flex-shrink:0; width:80px; height:80px; border-radius:50%; background:#1d4ed8; display:flex; align-items:center; justify-content:center;">
+      <span style="font-size:36px; color:#fff; font-weight:900;">5</span>
+    </div>
+    <div>
+      <div style="font-size:20px; font-weight:800; color:#1e293b; margin-bottom:6px;">5개 부서 모두, 도면 배포를 위한 수작업이 사라집니다</div>
+      <div style="font-size:15px; color:#475569; line-height:1.7;">도면 다운로드 &middot; 수동 업로드 &middot; 파일 바인딩 &middot; 워터마크 수작업 &middot; 카톡/메일 전달<br>
+      &rarr; 모두 시스템이 대체하여 <strong style="color:#1d4ed8;">각 부서가 본연의 업무에 집중</strong>할 수 있도록 변경</div>
+    </div>
+  </div>
+  <div class="dept-grid">
+    <div class="dept-card" style="border-color:#3b82f6;">
+      <h4 style="border-color:#3b82f6; color:#1d4ed8;">제품기술팀 (주문품)</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text">요청 접수 &rarr; PDM/NPDM 도면 개별 다운 &times; BOM수 &rarr; 규격표 출력 &rarr; <strong>EP-DRIVE에 도면 업로드</strong> &rarr; 파일 바인딩 &rarr; 워터마크 수작업 &rarr; 메일/카톡 발송<br><strong>담당 1명, 월 5건, 건당 ~24분 = 월 2시간</strong></div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text">ERP [부품규격표+도면 출력] 버튼 클릭 &rarr; 인쇄<br><strong>건당 ~1분 = 월 5분</strong></div>
+      </div>
+      <div class="time-save">월 2시간 &rarr; 5분 (96% 절감)</div>
+    </div>
+    <div class="dept-card" style="border-color:#6366f1;">
+      <h4 style="border-color:#6366f1; color:#4338ca;">제품기술팀 (표준품)</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text">동일 프로세스 + EP-DRIVE 업로드/구버전 교체 업무 추가<br>12월 27건 / 1월 37건 / 2월 41건 (증가 추세)<br><strong>담당 1명, 월평균 35건, 건당 ~24분 = 월 14시간</strong></div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text">ERP [부품규격표+도면 출력] 버튼 클릭 &rarr; 인쇄<br>EP-DRIVE 업로드 업무 소멸<br><strong>건당 ~1분 = 월 35분</strong></div>
+      </div>
+      <div class="time-save">월 14시간 &rarr; 35분 (96% 절감)</div>
+    </div>
+    <div class="dept-card" style="border-color:#f97316;">
+      <h4 style="border-color:#f97316; color:#c2410c;">구매팀 (자재 외주견적)</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text">제품기술팀에 도면 배포 요청서 작성 &rarr; 대기 &rarr; 수령 후 <strong>카톡/메일로 협력업체에 직접 전달</strong></div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text">NPDM 배포시스템으로 협력업체에 도면 배포 (권한 관리, 이력 자동)<br>또는 제품기술팀 없이 ERP에서 직접 출력 (권한 부여 시)</div>
+      </div>
+      <div class="time-save">요청서 대기 시간 제거 + 카톡 우회 경로 억제</div>
+    </div>
+    <div class="dept-card" style="border-color:#eab308;">
+      <h4 style="border-color:#eab308; color:#a16207;">생산팀 (재공품 외주견적)</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text">제품기술팀에 도면 배포 요청서 작성 &rarr; 대기 &rarr; 수령 후 <strong>카톡/메일로 협력업체에 직접 전달</strong></div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text">NPDM 배포시스템으로 협력업체에 도면 배포<br>또는 ERP에서 직접 출력 (권한 부여 시)</div>
+      </div>
+      <div class="time-save">요청서 대기 시간 제거 + 카톡 우회 경로 억제</div>
+    </div>
+    <div class="dept-card" style="border-color:#10b981;">
+      <h4 style="border-color:#10b981; color:#059669;">생산현장 (포장처 / 가공처)</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text"><strong>포장처:</strong> 도면 출력관리 전담 1인이 일 11시간 수작업 (부품규격표+도면 조합)<br><strong>가공처:</strong> 출력도면을 활용한 QC업무 skip (업무 부하)</div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text"><strong>포장처:</strong> ERP 버튼으로 합본 출력 &rarr; 도면 출력관리 전담 인력 불필요<br><strong>가공처:</strong> 동일 방식으로 도면 배포 <strong>신규 적용</strong> &rarr; QC 범위 확대</div>
+      </div>
+      <div class="time-save">도면 출력관리 인력 1인 절감 (월 242시간) + 가공라인 QC 커버리지 확대</div>
+    </div>
+    <div class="dept-card" style="border-color:#a855f7;">
+      <h4 style="border-color:#a855f7; color:#7c3aed;">품질보증팀</h4>
+      <div class="change-row">
+        <div class="change-label label-before">AS-IS</div>
+        <div class="change-text">검사 완료된 실물 도면 수거, 보관, 폐기 (종이 기반)</div>
+      </div>
+      <div class="change-row">
+        <div class="change-label label-after">TO-BE</div>
+        <div class="change-text">기존 업무 유지 (종이 도면 기반 QC는 현장 특성상 유지)<br>워터마크 자동 삽입으로 출력자/일시 추적 가능</div>
+      </div>
+      <div class="time-save">출력 이력 자동화로 추적성 강화</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 7. PDM 시스템 역할 재정의 ══════ -->
+<div class="section pdm-role">
+  <div class="section-title">PDM 시스템 역할 재정의 <span class="badge" style="background:#fef3c7; color:#92400e;">SYSTEM REDESIGN</span></div>
+  <div class="role-grid">
+    <div class="role-card role-current">
+      <h4>현재 PDM 역할</h4>
+      <ul>
+        <li>CREO / IMOS / AutoCAD 기반 도면 관리 <strong>레거시 시스템</strong></li>
+        <li>도면 조회/다운로드를 위해 <strong>다수 사용자가 직접 접속</strong></li>
+        <li>외부 시스템(ERP, 현장)에서 도면 필요 시 PDM 경유 필수</li>
+        <li>PDM 권한 관리 범위가 넓어 <strong>보안 통제 어려움</strong></li>
+      </ul>
+    </div>
+    <div class="role-arrow">&rarr;</div>
+    <div class="role-card role-future">
+      <h4>TO-BE PDM 역할 (축소)</h4>
+      <ul>
+        <li>IMOS / AutoCAD 도면 <strong>생성자 및 관리자 전용</strong>으로 축소</li>
+        <li>일반 사용자의 PDM 직접 접속 권한 <strong>회수</strong></li>
+        <li>도면 서비스는 <strong>NPDM + ERP가 분담</strong></li>
+        <li>NPDM: 외부 배포 + 도면 뷰어</li>
+        <li>ERP: 내부 업무용 도면 출력 (합본 출력)</li>
+      </ul>
+    </div>
+  </div>
+  <!-- 원래 설계 아키텍처 -->
+  <div style="margin-top:40px; padding:32px; border-radius:16px; background:#fff; border:1px solid #e2e8f0;">
+    <h4 style="font-size:18px; font-weight:700; margin-bottom:8px; color:#1e293b;">최초 설계 아키텍처 (PLM 1.5단계)</h4>
+    <p style="font-size:13px; color:#64748b; margin-bottom:20px;">CAD &rarr; PLM &rarr; NPDM 경로가 메인 프로세스로 설계됨. <strong style="color:#dc2626;">IMOS/AutoCAD 기반 도면의 배포 경로가 아키텍처에 존재하지 않음</strong> &mdash; PDM 사용을 줄이는것이 목표였으나 imos/autocad 도면의 배포처가 없어 사용이 지속되고 있음</p>
+    <div style="border-radius:12px; overflow:hidden; border:1px solid #e2e8f0;">
+      <img src="img_imos_arch.jpg" alt="PLM 1.5단계 아키텍처" style="width:100%; display:block;" />
+    </div>
+    <div style="margin-top:16px; padding:16px 20px; border-radius:10px; background:#fef2f2; border:1px solid #fecaca; font-size:13px; color:#991b1b; line-height:1.8;">
+      <strong>문제:</strong> CREO(CAD) 기반 도면은 PLM &rarr; NPDM 경로로 배포 가능하지만,<br>
+      <strong>IMOS / AutoCAD 기반 도면</strong>은 PDM에만 존재하며 외부 배포 경로가 없음 &rarr; 제품기술팀이 수동으로 배포하는 병목 발생
+    </div>
+    <div style="margin-top:12px; padding:16px 20px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:13px; color:#1e40af; line-height:1.8;">
+      <strong>해결:</strong> PDM의 역할을 IMOS/AutoCAD 도면의 <strong>생성 및 관리 전용</strong>으로 축소하고,<br>
+      도면 서비스(조회/출력/배포)는 <strong>NPDM(외부 배포)</strong>과 <strong>ERP(내부 합본 출력)</strong>가 담당
+    </div>
+  </div>
+
+  <div class="role-callout">
+    PDM은 도면의 <strong>원천 저장소</strong> 역할만 유지하고, 사용자 접점은 <strong>NPDM(외부)</strong>과 <strong>ERP(내부)</strong>로 이관<br>
+    &rarr; PDM 권한 보유자 축소로 <strong>보안 강화</strong> + 사용자는 <strong>익숙한 ERP에서 바로 출력</strong>
+  </div>
+</div>
+
+<!-- ══════ 8. 기술 검증 ══════ -->
+<div class="section verify">
+  <div class="section-title">기술 검증 &nbsp;4대 과제 + 부하 테스트 <span class="badge" style="background:#dbeafe; color:#1d4ed8;">VERIFIED</span></div>
+  <div class="verify-grid">
+    <div>
+      <h3 style="font-size:20px; font-weight:700; margin-bottom:20px;">검증 완료 과제</h3>
+      <div class="check-list">
+        <div class="check-item"><div class="check-icon">&check;</div><div><div class="check-text">BOM 기반 일괄 수집</div><div class="check-sub">mergePrint.do API &mdash; POC 완료 (04/21)</div></div></div>
+        <div class="check-item"><div class="check-icon">&check;</div><div><div class="check-text">규격표 + 도면 교차 합본</div><div class="check-sub">ClipReport PDF + PDFBox merge &mdash; POC 완료 (04/21)</div></div></div>
+        <div class="check-item"><div class="check-icon">&check;</div><div><div class="check-text">워터마크 자동 삽입</div><div class="check-sub">PDFBox 1.8.2 + append 모드 최적화 &mdash; POC 완료 (04/22)</div></div></div>
+        <div class="check-item"><div class="check-icon">&check;</div><div><div class="check-text">보안 뷰어 (인쇄 전용)</div><div class="check-sub">mozilla_pdf_js_secure.jsp &mdash; POC 완료 (04/21)</div></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="perf-card">
+        <h3>부하 테스트 실측 (2026.04.22)</h3>
+        <table class="perf-table">
+          <thead><tr><th>시나리오</th><th>PDF 크기</th><th>소요시간</th><th>메모리 증분</th></tr></thead>
+          <tbody>
+            <tr><td class="label">20건 (현실)</td><td>3.9 MB</td><td class="fast">37 ms</td><td>85 MB</td></tr>
+            <tr><td class="label">50건</td><td>9.8 MB</td><td>123 ms</td><td>231 MB</td></tr>
+            <tr><td class="label">100건 (극단)</td><td>19.5 MB</td><td>394 ms</td><td>452 MB</td></tr>
+            <tr><td class="label">200건 (스트레스)</td><td>39 MB</td><td>697 ms</td><td>914 MB</td></tr>
+          </tbody>
+        </table>
+        <div class="perf-callout">JVM Max 7,224MB &mdash; 최대 부하시 <strong>12.6%</strong> 사용<br>현실 시나리오 20건 기준 <strong>0.04초</strong>, 서버 부하 무시 가능</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 9. 리스크 대응 ══════ -->
+<div class="section" style="background:#fff;">
+  <div class="section-title">리스크 대응 계획 <span class="badge" style="background:#fee2e2; color:#dc2626;">RISK</span></div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px;">
+    <div style="padding:28px; border-radius:14px; border:1px solid #fecaca; background:#fef2f2;">
+      <div style="font-size:13px; font-weight:700; color:#dc2626; letter-spacing:1px; margin-bottom:8px;">RISK 01</div>
+      <h4 style="font-size:17px; font-weight:700; margin-bottom:12px;">대량 합본 시 서버 부하</h4>
+      <p style="font-size:13px; color:#64748b; line-height:1.8;">200건 합본 시 PDF 39MB, 메모리 914MB 사용</p>
+      <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:#fff; font-size:13px; color:#059669; font-weight:600;">
+        <strong>대응:</strong> ERP에서 합본 상한 50건 제한.<br>초과 시 자동 분할 출력 (50건씩 나눠 인쇄)
+      </div>
+    </div>
+    <div style="padding:28px; border-radius:14px; border:1px solid #fecaca; background:#fef2f2;">
+      <div style="font-size:13px; font-weight:700; color:#dc2626; letter-spacing:1px; margin-bottom:8px;">RISK 02</div>
+      <h4 style="font-size:17px; font-weight:700; margin-bottom:12px;">NPDM 연동 실패</h4>
+      <p style="font-size:13px; color:#64748b; line-height:1.8;">NPDM 서버 장애 또는 도면번호 형식 불일치</p>
+      <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:#fff; font-size:13px; color:#059669; font-weight:600;">
+        <strong>대응:</strong> PDM &rarr; NPDM 자동 fallback 구현 완료.<br>둘 다 실패 시 "도면없음" 페이지 자동 삽입
+      </div>
+    </div>
+    <div style="padding:28px; border-radius:14px; border:1px solid #fecaca; background:#fef2f2;">
+      <div style="font-size:13px; font-weight:700; color:#dc2626; letter-spacing:1px; margin-bottom:8px;">RISK 03</div>
+      <h4 style="font-size:17px; font-weight:700; margin-bottom:12px;">기존 배포 자산 잔존</h4>
+      <p style="font-size:13px; color:#64748b; line-height:1.8;">EP-DRIVE 기존 도면, 현장 로컬 PC에 저장된 도면 파일이 남아있음</p>
+      <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:#fff; font-size:13px; color:#059669; font-weight:600;">
+        <strong>대응:</strong><br>
+        <strong>&bull; EP-DRIVE:</strong> 합본 기능 배포 즉시 백도어 배포 중단 &rarr; 모든 권한 회수 &rarr; 도면 폴더 삭제<br>
+        <strong>&bull; 현장 로컬 PC:</strong> 단계적 삭제 진행<br>
+        <strong>&bull; 카톡/메일:</strong> 회수 불가하나 리비전 변경 시 자연 무효화 + 워터마크로 정식/비정식 구분
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 10. 추진 로드맵 ══════ -->
+<div class="section roadmap">
+  <div class="section-title">추진 로드맵 <span class="badge" style="background:#e0e7ff; color:#4338ca;">ROADMAP</span></div>
+  <div class="road-items">
+    <!-- 완료 Phase들 -->
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#059669;">PHASE 0</div><div class="rd-dot" style="background:#059669;"></div></div>
+      <div class="road-body"><h4>개발환경 구축 + 레거시 분석</h4><p>PDM 레거시 소스 분석 (Spring 3.2 + JSP + PDFBox 1.8.2 + 4개 DB)<br>IntelliJ CE + Smart Tomcat + JDK 1.8 + Claude MCP + Figma MCP + sqlcmd 등 AI 협업 환경 구축<br>형상 분석, DB 구조 파악, ERP-PDM-NPDM 연동 체인 전수 조사</p></div>
+      <div class="road-status rs-done">04/08~14 완료</div>
+    </div>
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#059669;">PHASE 1-1</div><div class="rd-dot" style="background:#059669;"></div></div>
+      <div class="road-body"><h4>현장 인터뷰 + AS-IS 분석</h4><p>충주공장 방문 &mdash; 7명 인터뷰 (PM, 표준품, 주문품, 구매, 생산, 품질, 현장)<br>AS-IS 도면배포 흐름도 작성, 5개 부서 문제점 도출, 백도어 3곳 식별</p></div>
+      <div class="road-status rs-done">04/15~17 완료</div>
+    </div>
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#059669;">PHASE 1-2</div><div class="rd-dot" style="background:#059669;"></div></div>
+      <div class="road-body"><h4>기술 검토 + POC + 부하 테스트</h4><p>4대 기술 과제 검증, ERP+PDM+NPDM 3개 시스템 연동 POC<br>NPDM 자체 연동 해결, 부하 테스트 실측, PDF 크기 최적화 (57% 절감)<br>팀장 기술개발검토 통과</p></div>
+      <div class="road-status rs-done">04/20~22 완료</div>
+    </div>
+    <!-- 진행 Phase -->
+    <div class="road-item" style="background:#eff6ff; margin:0 -120px; padding:24px 120px; border-bottom:1px solid #bfdbfe;">
+      <div class="road-phase"><div class="rd-num" style="color:#1d4ed8;">PHASE 2</div><div class="rd-dot" style="background:#3b82f6;"></div></div>
+      <div class="road-body"><h4>ERP 신규 버튼 개발 + 프로덕션 전환</h4><p>PPC0300 [부품규격표+도면 출력] 버튼 신규 개발, 사용자 권한 제어<br>POC 코드 정리 (테스트 블록 삭제, 도메인 분기), ERP items 파라미터 수정<br>규격표 다페이지 검증, 통합 테스트, 운영 배포</p></div>
+      <div class="road-status rs-now">5월 1주~2주 (2주)</div>
+    </div>
+    <!-- 후속 Phase -->
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#64748b;">PHASE 3</div><div class="rd-dot" style="background:#94a3b8;"></div></div>
+      <div class="road-body"><h4>현장 적용 + EP-DRIVE 정리 + 안정화</h4><p>충주공장 현장 적용, 사용자 피드백 수집, 가공라인 도면 배포 신규 적용<br>EP-DRIVE 도면 폴더 권한 회수 &rarr; 삭제 / 현장 로컬 PC 도면 단계적 삭제<br>현업 사용자 교육 (제품기술팀, 현장)</p></div>
+      <div class="road-status rs-next">5월 3주 (1주)</div>
+    </div>
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#64748b;">PHASE 4</div><div class="rd-dot" style="background:#94a3b8;"></div></div>
+      <div class="road-body"><h4>NPDM 활성화 + 사용자 교육</h4><p>외주 협력업체 도면 배포를 NPDM 배포시스템으로 전환<br>구매/생산/제품기술팀 NPDM 교육</p></div>
+      <div class="road-status rs-next">5월 4주~ (후속)</div>
+    </div>
+    <div class="road-item">
+      <div class="road-phase"><div class="rd-num" style="color:#64748b;">PHASE 5</div><div class="rd-dot" style="background:#94a3b8;"></div></div>
+      <div class="road-body"><h4>PDM 권한 축소 + 역할 재정의</h4><p>일반 사용자 PDM 직접 접속 권한 회수, 도면 서비스를 NPDM+ERP로 이관<br>PDM은 IMOS/AutoCAD 도면 생성자 및 관리자 전용으로 축소</p></div>
+      <div class="road-status rs-next">6월~ (후속)</div>
+    </div>
+  </div>
+
+  <!-- 바로가기 링크 -->
+  <div style="margin-top:40px; display:flex; gap:20px;">
+    <a href="https://www.figma.com/board/jKhcVtcKngHbc0IJ0h4aYG" target="_blank" style="flex:1; display:block; padding:20px 28px; border-radius:12px; background:#0f172a; color:#e2e8f0; text-decoration:none; text-align:center; font-size:15px; font-weight:600;">
+      AS-IS 도면배포 흐름도 (FigJam) &rarr;
+    </a>
+    <a href="index.html" target="_blank" style="flex:1; display:block; padding:20px 28px; border-radius:12px; background:#1e40af; color:#e2e8f0; text-decoration:none; text-align:center; font-size:15px; font-weight:600;">
+      프로젝트 산출물 대시보드 &rarr;
+    </a>
+  </div>
+</div>
+
+<!-- ══════ 11. 현업 인터뷰 출처 ══════ -->
+<div class="section" style="background:#f8fafc;">
+  <div class="section-title">현업 인터뷰 근거 <span class="badge" style="background:#dbeafe; color:#1d4ed8;">SOURCE</span></div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px;">
+    <div style="padding:28px; border-radius:14px; background:#fff; border:1px solid #e2e8f0;">
+      <h4 style="font-size:17px; font-weight:700; margin-bottom:16px; color:#1e293b;">충주공장 현장 인터뷰 (2026.04)</h4>
+      <table style="width:100%; font-size:14px; border-collapse:collapse;">
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; width:120px; border-bottom:1px solid #f1f5f9;">PM</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">정연석 PM</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">표준품 담당</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">이정연</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">주문품 담당</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">김다윤</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">구매팀</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">권석진</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">생산팀</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">김지연</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">품질보증팀</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">박혁</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b;">현장</td><td style="padding:8px 10px;">소사장 및 반장 (가공/포장)</td></tr>
+      </table>
+    </div>
+    <div style="padding:28px; border-radius:14px; background:#fff; border:1px solid #e2e8f0;">
+      <h4 style="font-size:17px; font-weight:700; margin-bottom:16px; color:#1e293b;">데이터 근거</h4>
+      <table style="width:100%; font-size:14px; border-collapse:collapse;">
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; width:160px; border-bottom:1px solid #f1f5f9;">표준품 요청 건수</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">제품기술팀 실제 처리 이력 (12~2월)</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">건당 소요시간</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">현업 인터뷰 + 업무 프로세스 분석</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">도면 출력관리 인력 근무시간</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">현장 소사장 인터뷰 (일 11시간)</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">부하 테스트 수치</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">개발환경 실측 (2026.04.22)</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b;">카톡 전달 증거</td><td style="padding:8px 10px;">구매/생산/제품기술팀 카톡 캡처</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- (기대효과는 섹션 5로 이동됨) -->
+
+<!-- ══════ FOOTER ══════ -->
+<div class="footer">
+  <p class="org">제조DT개발팀 김효섭 &nbsp;|&nbsp; PDM 도면관리 시스템 개선 프로젝트</p>
+  <p>2026.04 &nbsp;&mdash;&nbsp; 본 보고서의 모든 수치는 개발환경 실측 데이터 및 현업 인터뷰 기반</p>
+</div>
+
+</body>
+</html>
