@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>Portfolio — PDM 도면배포 시스템 개선</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root { --ink:#1a1a1a; --mid:#555; --light:#999; --border:#e0e0e0; --bg:#fff; --accent:#0a6e5c; --accent-bg:#e8f5f1; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans KR',sans-serif; background:#f5f5f2; color:var(--ink); width:1200px; margin:0 auto; -webkit-font-smoothing:antialiased; }
+.mono { font-family:'Space Mono',monospace; }
+
+/* ── Hero ── */
+.hero { padding:80px 80px 60px; background:var(--bg); border-bottom:1px solid var(--border); }
+.hero-label { font-family:'Space Mono',monospace; font-size:12px; letter-spacing:4px; color:var(--accent); margin-bottom:32px; }
+.hero h1 { font-size:44px; font-weight:900; line-height:1.25; margin-bottom:20px; letter-spacing:-1px; }
+.hero h1 span { color:var(--accent); }
+.hero-sub { font-size:17px; color:var(--mid); line-height:1.8; max-width:700px; margin-bottom:36px; }
+.hero-meta { display:flex; gap:48px; }
+.hero-meta-item { }
+.hero-meta-item dt { font-size:11px; font-weight:600; letter-spacing:2px; color:var(--light); margin-bottom:4px; }
+.hero-meta-item dd { font-size:15px; color:var(--ink); font-weight:500; }
+
+/* ── Section ── */
+.sec { padding:72px 80px; background:var(--bg); border-bottom:1px solid var(--border); }
+.sec-dark { background:#111; color:#ddd; border-bottom:none; }
+.sec-label { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--accent); margin-bottom:12px; }
+.sec-dark .sec-label { color:#5bb89a; }
+.sec-title { font-size:32px; font-weight:800; margin-bottom:12px; letter-spacing:-0.5px; }
+.sec-dark .sec-title { color:#fff; }
+.sec-desc { font-size:15px; color:var(--mid); line-height:1.8; margin-bottom:40px; max-width:800px; }
+.sec-dark .sec-desc { color:#999; }
+
+/* ── Story ── */
+.story-grid { display:grid; grid-template-columns:200px 1fr; gap:0; }
+.story-phase { padding:24px 0; border-right:2px solid var(--border); padding-right:32px; }
+.story-phase .phase-num { font-family:'Space Mono',monospace; font-size:12px; color:var(--accent); font-weight:700; }
+.story-phase .phase-period { font-size:12px; color:var(--light); margin-top:4px; }
+.story-content { padding:24px 0 24px 32px; border-bottom:1px solid #f0f0f0; }
+.story-content:last-child { border-bottom:none; }
+.story-content h4 { font-size:17px; font-weight:700; margin-bottom:8px; }
+.story-content p { font-size:14px; color:var(--mid); line-height:1.9; }
+.story-content .tag { display:inline-block; padding:2px 8px; font-size:11px; font-weight:600; border:1px solid var(--border); color:var(--mid); margin-right:4px; margin-top:8px; }
+
+/* ── Problem ── */
+.prob-list { display:flex; flex-direction:column; gap:0; counter-reset:prob; }
+.prob-item { display:grid; grid-template-columns:60px 1fr; gap:24px; padding:28px 0; border-bottom:1px solid #f0f0f0; counter-increment:prob; }
+.prob-item:last-child { border-bottom:none; }
+.prob-num { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; color:var(--border); }
+.prob-body h4 { font-size:16px; font-weight:700; margin-bottom:6px; }
+.prob-body p { font-size:14px; color:var(--mid); line-height:1.8; }
+.prob-body .prob-stat { font-family:'Space Mono',monospace; font-size:13px; color:var(--accent); font-weight:700; margin-top:4px; }
+
+/* ── Approach ── */
+.approach-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
+.approach-card { padding:32px; border:1px solid #2a2a2a; }
+.sec-dark .approach-card h4 { color:#fff; font-size:16px; font-weight:700; margin-bottom:12px; }
+.sec-dark .approach-card p { font-size:14px; color:#999; line-height:1.8; }
+.sec-dark .approach-card .insight { margin-top:12px; padding:12px 16px; border-left:2px solid #5bb89a; font-size:13px; color:#5bb89a; line-height:1.7; }
+
+/* ── Flow ── */
+.flow-strip { display:flex; align-items:center; justify-content:center; gap:0; margin:40px 0; }
+.flow-box { padding:20px 24px; border:1px solid var(--border); text-align:center; width:180px; }
+.flow-box h5 { font-size:14px; font-weight:700; margin-bottom:4px; }
+.flow-box p { font-size:11px; color:var(--mid); }
+.flow-conn { width:32px; height:1px; background:var(--border); flex-shrink:0; }
+
+/* ── Result ── */
+.result-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; }
+.result-card { text-align:center; padding:40px 24px; border:1px solid var(--border); }
+.result-card .r-num { font-family:'Space Mono',monospace; font-size:48px; font-weight:700; color:var(--ink); }
+.result-card .r-label { font-size:13px; font-weight:600; color:var(--mid); margin-top:8px; letter-spacing:1px; }
+.result-card .r-detail { font-size:13px; color:var(--light); margin-top:8px; line-height:1.6; }
+.result-total { margin-top:24px; padding:24px; border:2px solid var(--accent); text-align:center; }
+.result-total span { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; color:var(--accent); }
+.result-total p { font-size:13px; color:var(--mid); margin-top:4px; }
+
+/* ── Evidence ── */
+.evidence-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.ev-card { border:1px solid var(--border); overflow:hidden; }
+.ev-card img { width:100%; display:block; }
+.ev-card .ev-cap { padding:12px 16px; font-size:12px; color:var(--mid); border-top:1px solid var(--border); }
+
+/* ── Tech ── */
+.tech-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.tech-pill { padding:6px 16px; border:1px solid var(--border); font-size:13px; color:var(--mid); }
+
+/* ── Learnings ── */
+.learn-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.learn-card { padding:28px; border:1px solid var(--border); }
+.learn-card h4 { font-size:15px; font-weight:700; margin-bottom:8px; }
+.learn-card p { font-size:14px; color:var(--mid); line-height:1.8; }
+
+/* ── Footer ── */
+.foot { padding:48px 80px; background:var(--bg); text-align:center; }
+.foot p { font-size:13px; color:var(--light); }
+.foot .name { font-size:15px; color:var(--ink); font-weight:600; margin-bottom:4px; }
+</style>
+</head>
+<body>
+
+<!-- ══════ HERO ══════ -->
+<div class="hero">
+  <div class="hero-label">PROJECT CASE STUDY</div>
+  <h1>제조 현장의 도면이<br><span>현장에 닿지 못하는</span> 문제를 풀다</h1>
+  <div class="hero-sub">
+    보안을 위해 막았지만, 현실에서는 카톡과 공유폴더로 도면이 유통되고 있었습니다.<br>
+    4개 시스템에 흩어진 도면 배포를 하나의 버튼으로 통합하고,<br>
+    5개 부서의 수작업을 자동화한 프로젝트입니다.
+  </div>
+  <div class="hero-meta">
+    <div class="hero-meta-item"><dt>ROLE</dt><dd>기획 / 개발 / PM</dd></div>
+    <div class="hero-meta-item"><dt>PERIOD</dt><dd>2026.04 ~ 06 (10주)</dd></div>
+    <div class="hero-meta-item"><dt>COMPANY</dt><dd>퍼시스 제조DT개발팀</dd></div>
+    <div class="hero-meta-item"><dt>SCOPE</dt><dd>분석 / 기획 / 개발 / 배포 / 보안 / 안정화</dd></div>
+  </div>
+</div>
+
+<!-- ══════ 프로젝트 타임라인 ══════ -->
+<div class="sec">
+  <div class="sec-label">TIMELINE</div>
+  <div class="sec-title">10주간의 여정</div>
+  <div class="sec-desc">레거시 분석부터 현장 도면 회수까지 — 분석, 기획, 개발, 배포, 안정화를 1인이 수행한 풀사이클 프로젝트</div>
+
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 01</div><div class="phase-period">04/08 ~ 14</div></div>
+    <div class="story-content">
+      <h4>레거시 시스템 전수 조사</h4>
+      <p>10년 된 PDM 레거시 (Spring 3.2 + JSP + PDFBox 1.8.2)를 처음 만났습니다. 4개 DB, 3개 시스템의 연동 구조를 파악하고, AI 협업 환경(Claude MCP + Figma MCP + sqlcmd)을 구축했습니다.</p>
+      <div><span class="tag">Spring 3.2</span><span class="tag">JDK 1.8</span><span class="tag">PDFBox</span><span class="tag">MSSQL</span><span class="tag">Claude MCP</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 02</div><div class="phase-period">04/15 ~ 17</div></div>
+    <div class="story-content">
+      <h4>충주공장 현장 인터뷰 + AS-IS 분석</h4>
+      <p>7명의 현업 담당자를 직접 만나 업무 흐름을 추적했습니다. "보안을 위해 막았지만 보안이 전혀 안 되는" 역설을 발견하고, 백도어 3곳(카톡, EP-DRIVE, 메일)을 식별했습니다. NPDM에 이미 배포 기능이 있지만 아무도 사용하지 않는다는 사실도 이때 발견했습니다.</p>
+      <div><span class="tag">현장 인터뷰</span><span class="tag">업무 프로세스 분석</span><span class="tag">FigJam</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 03</div><div class="phase-period">04/20 ~ 22</div></div>
+    <div class="story-content">
+      <h4>기술 검토 + POC 개발 + 부하 테스트</h4>
+      <p>4대 기술 과제를 검증하고, ERP+PDM+NPDM 3개 시스템을 연동하는 합본 출력 POC를 구현했습니다. NPDM 연동은 해당 팀 협의 없이 AES256 암호화 이식으로 자체 해결했습니다. 200건(400페이지) 합본이 0.7초에 완료되는 것을 실측으로 확인하고, 팀장 기술개발검토를 통과했습니다.</p>
+      <div><span class="tag">PDFBox</span><span class="tag">ClipReport</span><span class="tag">AES256</span><span class="tag">부하 테스트</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 04~05</div><div class="phase-period">05/01 ~ 14</div></div>
+    <div class="story-content">
+      <h4>ERP 신규 버튼 개발 + 프로덕션 전환</h4>
+      <p>ERP PPC0300에 [부품규격표+도면 출력] 신규 버튼을 개발하고, 특정 사용자만 접근 가능하도록 권한 제어를 구현했습니다. POC 코드를 프로덕션 수준으로 정리하고, 도메인 분기, 통합 테스트를 거쳐 운영 배포했습니다.</p>
+      <div><span class="tag">넥사크로</span><span class="tag">권한 제어</span><span class="tag">운영 배포</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 06</div><div class="phase-period">05/15 ~ 21</div></div>
+    <div class="story-content">
+      <h4>현장 적용 + EP-DRIVE 백도어 폐쇄</h4>
+      <p>충주공장 현장에 시스템을 적용하고, EP-DRIVE 도면 폴더의 모든 권한을 회수한 뒤 삭제했습니다. 가공라인에 도면 배포를 신규 적용하여 기존에 skip되던 QC 업무의 커버리지를 확대했습니다.</p>
+      <div><span class="tag">현장 적용</span><span class="tag">백도어 폐쇄</span><span class="tag">QC 확대</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 07</div><div class="phase-period">05/22 ~ 28</div></div>
+    <div class="story-content">
+      <h4>NPDM 배포시스템 활성화 + 사용자 교육</h4>
+      <p>외주 협력업체 도면 배포를 카톡/메일에서 NPDM 배포시스템으로 전환했습니다. 구매팀, 생산팀, 제품기술팀 대상으로 NPDM 사용 교육을 진행하고, 카톡 우회 경로를 억제했습니다.</p>
+      <div><span class="tag">NPDM 활성화</span><span class="tag">사용자 교육</span><span class="tag">백도어 억제</span></div>
+    </div>
+  </div>
+  <div class="story-grid">
+    <div class="story-phase"><div class="phase-num">WEEK 08~10</div><div class="phase-period">06/01 ~ 18</div></div>
+    <div class="story-content">
+      <h4>PDM 권한 축소 + 현장 도면 회수 + 안정화</h4>
+      <p>일반 사용자의 PDM 직접 접속 권한을 회수하고, 도면 서비스를 NPDM(외부)과 ERP(내부)로 이관했습니다. 현장 로컬 PC에 저장된 도면 파일을 단계적으로 삭제하고, 워터마크 기반 출력 이력 모니터링 체계를 구축했습니다.</p>
+      <div><span class="tag">권한 회수</span><span class="tag">도면 회수</span><span class="tag">이력 모니터링</span><span class="tag">안정화</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 문제 발견 ══════ -->
+<div class="sec">
+  <div class="sec-label">PROBLEM DISCOVERY</div>
+  <div class="sec-title">현장에서 발견한 5가지 문제</div>
+  <div class="sec-desc">책상에서는 "도면 다운로드 기능 추가" 과제였습니다. 현장에 가보니 "업무/시스템 재설계" 프로젝트였습니다.</div>
+
+  <div class="prob-list">
+    <div class="prob-item">
+      <div class="prob-num">01</div>
+      <div class="prob-body">
+        <h4>도면 서비스가 4곳으로 분산</h4>
+        <p>PDM, NPDM, ERP, EP-DRIVE를 오가며 도면을 수집해야 합니다. 한 건의 도면 배포에 4개 시스템 접속이 필요합니다.</p>
+      </div>
+    </div>
+    <div class="prob-item">
+      <div class="prob-num">02</div>
+      <div class="prob-body">
+        <h4>제품기술팀이 모든 요청의 병목</h4>
+        <p>4개 부서의 도면 요청이 제품기술팀 2명에게 집중됩니다. 주문품 1명, 표준품 1명이 월 40건을 처리하면서 본업(설계지원)을 방해받고 있습니다.</p>
+        <div class="prob-stat">월 40건 x 24분/건 = 16시간/월</div>
+      </div>
+    </div>
+    <div class="prob-item">
+      <div class="prob-num">03</div>
+      <div class="prob-body">
+        <h4>보안을 위해 막았지만, 보안이 작동하지 않음</h4>
+        <p>ERP에서 사내협력사의 도면 다운로드를 차단했지만, 카톡/메일/EP-DRIVE로 도면이 유통됩니다. 워터마크 없음, 이력 없음, 감사 추적 불가. "편의가 보안을 이긴" 전형적 사례입니다.</p>
+      </div>
+    </div>
+    <div class="prob-item">
+      <div class="prob-num">04</div>
+      <div class="prob-body">
+        <h4>도면 출력관리에 전담 인력 1인 투입</h4>
+        <p>부품규격표와 도면을 수작업으로 바인딩하는 데 일 11시간씩 전담 인력을 배치하고 있습니다.</p>
+        <div class="prob-stat">1인 x 11시간/일 x 22일 = 242시간/월 = 연 약 4,040만원</div>
+      </div>
+    </div>
+    <div class="prob-item">
+      <div class="prob-num">05</div>
+      <div class="prob-body">
+        <h4>시스템 설계에 빠진 구멍</h4>
+        <p>PLM 1.5단계 아키텍처에서 CREO 기반 도면은 PLM→NPDM 경로가 설계되어 있지만, IMOS/AutoCAD 기반 도면의 배포 경로가 아예 존재하지 않습니다. 백도어가 생긴 건 사람 탓이 아니라 시스템 설계의 부재입니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <div class="evidence-grid">
+      <div class="ev-card"><img src="../img_kakao.jpg" alt="카톡 도면 전달" /><div class="ev-cap">실제 카톡 도면 전달 화면 - 3개 팀 모두 카톡으로 협력업체에 직접 전달</div></div>
+      <div class="ev-card"><img src="../img_epdrive.jpg" alt="EP-DRIVE" /><div class="ev-cap">EP-DRIVE 비공식 공유폴더 - 보안 이력 없이 도면이 유통되는 백도어</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 접근 방식 ══════ -->
+<div class="sec sec-dark">
+  <div class="sec-label">APPROACH</div>
+  <div class="sec-title">어떻게 풀었는가</div>
+  <div class="sec-desc">핵심 판단: "기능을 만드는 것"이 아니라 "사용자가 공식 경로를 쓰고 싶게 만드는 것"</div>
+
+  <div class="approach-grid">
+    <div class="approach-card">
+      <h4>원칙 1: 업무가 늘어나면 안 된다</h4>
+      <p>보안을 강화하면서도 사용자의 업무 단계가 늘어나면 또 다른 우회가 생깁니다. AS-IS 7단계를 TO-BE 3단계로 줄여야 공식 경로가 채택됩니다.</p>
+      <div class="insight">카톡이 이긴 이유는 "편해서"였습니다. 시스템이 카톡보다 편해야 합니다.</div>
+    </div>
+    <div class="approach-card">
+      <h4>원칙 2: 있는 것을 먼저 쓴다</h4>
+      <p>NPDM에 외주배포 기능이 이미 있었지만 아무도 몰랐습니다. 신규 시스템을 만들기 전에 기존 기능의 활성화를 먼저 검토했습니다.</p>
+      <div class="insight">NPDM 발견으로 "ERP 견적요청시스템 신규 개발" 계획이 불필요해졌습니다.</div>
+    </div>
+    <div class="approach-card">
+      <h4>원칙 3: 3개 시스템을 하나처럼</h4>
+      <p>ERP(부품규격표) + PDM(레거시 도면) + NPDM(신규 도면)을 서버사이드에서 자동 연동. 사용자는 ERP 버튼 하나만 누릅니다.</p>
+      <div class="insight">PDM→NPDM 자동 fallback으로 어느 시스템에 도면이 있든 자동 수집</div>
+    </div>
+    <div class="approach-card">
+      <h4>원칙 4: 보안은 투명하게</h4>
+      <p>다운로드를 차단하는 대신, 출력을 허용하면서 워터마크와 이력으로 추적 가능하게 했습니다. "못 하게 막는 보안"에서 "하되 추적되는 보안"으로.</p>
+      <div class="insight">사용자 행동을 바꾸지 않으면서 보안 수준을 올리는 접근</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 해결책 ══════ -->
+<div class="sec">
+  <div class="sec-label">SOLUTION</div>
+  <div class="sec-title">원클릭 합본 출력</div>
+  <div class="sec-desc">ERP에서 버튼 한 번이면 규격표와 도면이 자동으로 합본되어 인쇄됩니다.</div>
+
+  <div class="flow-strip">
+    <div class="flow-box"><h5>ERP</h5><p>[신규 버튼]<br>권한 제한</p></div>
+    <div class="flow-conn"></div>
+    <div class="flow-box"><h5>ClipReport</h5><p>규격표 PDF<br>자동 생성</p></div>
+    <div class="flow-conn"></div>
+    <div class="flow-box"><h5>PDM API</h5><p>BOM 일괄 수집<br>PDM+NPDM</p></div>
+    <div class="flow-conn"></div>
+    <div class="flow-box"><h5>PDFBox</h5><p>교차 합본<br>+ 워터마크</p></div>
+    <div class="flow-conn"></div>
+    <div class="flow-box"><h5>일괄 인쇄</h5><p>프리뷰<br>원클릭 출력</p></div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:40px;">
+    <div style="padding:28px; border:1px solid var(--border);">
+      <h4 style="font-size:15px; font-weight:700; color:#8b2020; margin-bottom:16px;">AS-IS: 7단계, 건당 24분</h4>
+      <ol style="font-size:14px; color:var(--mid); line-height:2.2; padding-left:20px;">
+        <li>ERP 부품규격표 출력</li>
+        <li>PDM 접속 → 코드 검색 → BOM 확인</li>
+        <li>도면 개별 다운로드 x BOM 수</li>
+        <li>EP-DRIVE에 수동 업로드</li>
+        <li>파일 조합 바인딩</li>
+        <li>워터마크 수작업 x 도면 수</li>
+        <li>인쇄 → 현장 배포</li>
+      </ol>
+    </div>
+    <div style="padding:28px; border:1px solid var(--border);">
+      <h4 style="font-size:15px; font-weight:700; color:var(--accent); margin-bottom:16px;">TO-BE: 3단계, 건당 1분</h4>
+      <ol style="font-size:14px; color:var(--mid); line-height:2.2; padding-left:20px;">
+        <li>ERP [부품규격표+도면 출력] 버튼 클릭</li>
+        <li>자동: 수집 + 합본 + 워터마크</li>
+        <li>일괄 인쇄</li>
+      </ol>
+      <div style="margin-top:20px; padding:12px 16px; background:var(--accent-bg); font-size:13px; color:var(--accent); font-weight:600;">
+        PDM 접속 불필요 / EP-DRIVE 불필요 / 개별 다운 불필요 / 바인딩 불필요
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 기술적 도전 ══════ -->
+<div class="sec">
+  <div class="sec-label">TECHNICAL CHALLENGES</div>
+  <div class="sec-title">기술적으로 풀어야 했던 것들</div>
+
+  <div class="learn-grid">
+    <div class="learn-card">
+      <h4>NPDM 연동 — 팀 협의 없이 자체 해결</h4>
+      <p>NPDM 팀에 API 요청 없이, ERP에서 사용하는 AES256 암호화 로직을 PDM으로 이식하여 NPDM의 downloadPdf.do를 직접 호출. HTTP 서버사이드 연동으로 해결했습니다.</p>
+    </div>
+    <div class="learn-card">
+      <h4>NPDM PDF 워터마크 — invisible 모드 이슈</h4>
+      <p>NPDM에서 받은 PDF가 텍스트 렌더링 모드=3(invisible)으로 설정되어 워터마크가 안 보이는 문제를 발견. q/Q 그래픽 상태 격리 + 0 Tr 명시적 리셋으로 해결했습니다.</p>
+    </div>
+    <div class="learn-card">
+      <h4>PDF 크기 최적화 — 57% 절감</h4>
+      <p>초기 importPage 방식이 PDF 크기를 2~8배 폭발시키는 문제 발견. append 모드 + 상태 격리로 전환하여 NPDM 포함 합본 시 9.76MB→4.23MB (57% 절감) 달성.</p>
+    </div>
+    <div class="learn-card">
+      <h4>레거시 호환성 — Spring 3.2 + JDK 1.8</h4>
+      <p>Spring 3.2의 ASM이 Java 8 class file을 못 읽는 문제, 파라미터명 바인딩 이슈 등 레거시 환경에서의 제약을 하나씩 해결하며 POC를 구현했습니다.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:32px;">
+    <div style="font-size:13px; font-weight:600; letter-spacing:2px; color:var(--light); margin-bottom:16px;">TECH STACK</div>
+    <div class="tech-list">
+      <span class="tech-pill">Java 1.8</span>
+      <span class="tech-pill">Spring 3.2</span>
+      <span class="tech-pill">PDFBox 1.8.2</span>
+      <span class="tech-pill">ClipReport</span>
+      <span class="tech-pill">MSSQL</span>
+      <span class="tech-pill">넥사크로 (ERP)</span>
+      <span class="tech-pill">AES256</span>
+      <span class="tech-pill">PDF.js</span>
+      <span class="tech-pill">Claude Code</span>
+      <span class="tech-pill">Figma MCP</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 보안 ══════ -->
+<div class="sec">
+  <div class="sec-label">SECURITY</div>
+  <div class="sec-title">보안은 "막는 것"이 아니라 "추적할 수 있는 것"</div>
+  <div class="sec-desc">기존 접근: 다운로드를 차단 → 결과: 카톡/EP-DRIVE로 우회. 새로운 접근: 출력을 허용하되, 모든 행위를 추적 가능하게 설계했습니다.</div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px;">
+    <div style="padding:28px; border:1px solid var(--border);">
+      <h4 style="font-size:15px; font-weight:700; color:#8b2020; margin-bottom:16px;">AS-IS: 막았지만 뚫림</h4>
+      <ul style="font-size:14px; color:var(--mid); line-height:2.2; padding-left:20px;">
+        <li>ERP 도면 다운로드 차단 (보안 정책)</li>
+        <li>하지만 카톡으로 도면 파일 직접 전달</li>
+        <li>EP-DRIVE 비공식 폴더로 배포</li>
+        <li>메일 첨부로 외부 유출</li>
+        <li><strong>워터마크 없음, 이력 없음, 추적 불가</strong></li>
+      </ul>
+    </div>
+    <div style="padding:28px; border:1px solid var(--border);">
+      <h4 style="font-size:15px; font-weight:700; color:var(--accent); margin-bottom:16px;">TO-BE: 허용하되 추적</h4>
+      <ul style="font-size:14px; color:var(--mid); line-height:2.2; padding-left:20px;">
+        <li><strong>권한 기반 출력</strong> — ERP 권한 있는 사용자만 버튼 접근</li>
+        <li><strong>워터마크 자동</strong> — 출력자/일시/출처(PDM/NPDM) 자동 삽입</li>
+        <li><strong>출력 이력 자동</strong> — T_DRAW_FILE_LOG에 누가/언제/어떤 도면 기록</li>
+        <li><strong>EP-DRIVE 폐쇄</strong> — 권한 회수 + 도면 폴더 삭제</li>
+        <li><strong>현장 도면 회수</strong> — 로컬 PC 저장 도면 단계적 삭제</li>
+        <li><strong>물리 반출</strong> — 오피스키퍼(보안툴)에 위임</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:32px; padding:20px 28px; border-left:3px solid var(--accent); background:var(--accent-bg); font-size:14px; color:var(--accent); line-height:1.8;">
+    <strong>보안 설계 원칙:</strong> 사용자 행동을 바꾸지 않으면서 보안 수준을 올린다. 불편하면 우회하고, 우회하면 통제를 잃는다. "편하게 쓸 수 있는 공식 경로"가 최선의 보안이다.
+  </div>
+</div>
+
+<!-- ══════ 성과 ══════ -->
+<div class="sec">
+  <div class="sec-label">RESULTS</div>
+  <div class="sec-title">성과</div>
+
+  <div class="result-grid">
+    <div class="result-card">
+      <div class="r-num">96%</div>
+      <div class="r-label">업무 시간 절감</div>
+      <div class="r-detail">건당 24분 → 1분<br>제품기술팀 월 16시간 → 40분</div>
+    </div>
+    <div class="result-card">
+      <div class="r-num">1명</div>
+      <div class="r-label">인력 절감</div>
+      <div class="r-detail">도면 출력관리 전담 인력 해소<br>월 242시간 → 0시간</div>
+    </div>
+    <div class="result-card">
+      <div class="r-num">3곳</div>
+      <div class="r-label">백도어 억제</div>
+      <div class="r-detail">카톡 / EP-DRIVE / 메일<br>우회 경로 체계적 억제</div>
+    </div>
+  </div>
+  <div class="result-total">
+    <span>연간 약 4,230만원 / 3,086시간 절감</span>
+    <p>부하 테스트: 200건(400페이지) 합본 0.7초, 서버 메모리 12.6% 사용</p>
+  </div>
+</div>
+
+<!-- ══════ 배운 것 ══════ -->
+<div class="sec sec-dark">
+  <div class="sec-label">LEARNINGS</div>
+  <div class="sec-title">이 프로젝트에서 배운 것</div>
+
+  <div class="approach-grid">
+    <div class="approach-card">
+      <h4>현장에 가야 문제가 보인다</h4>
+      <p>책상에서는 "도면 다운로드 기능 추가"였습니다. 충주공장에 가서 7명을 만나고 나서야 "4개 시스템에 걸친 업무/시스템 재설계"가 필요하다는 것을 알았습니다. 도면 배포 요청서, 카톡 캡처, EP-DRIVE 스크린샷 — 현장의 증거가 프로젝트 방향을 바꿨습니다.</p>
+    </div>
+    <div class="approach-card">
+      <h4>편의가 보안을 이긴다</h4>
+      <p>보안 시스템이 아무리 좋아도 사용자가 불편하면 우회합니다. 카톡 드래그앤드롭이 NPDM 배포시스템을 이긴 이유는 단 하나 — "편해서"였습니다. TO-BE가 AS-IS보다 편해야 채택됩니다.</p>
+    </div>
+    <div class="approach-card">
+      <h4>있는 걸 먼저 찾아라</h4>
+      <p>NPDM의 미사용 배포 기능 발견으로 "ERP 견적요청시스템 신규 개발" 계획이 불필요해졌습니다. 새로 만들기 전에 기존 시스템을 전수 조사하는 것이 가장 큰 효율입니다.</p>
+    </div>
+    <div class="approach-card">
+      <h4>AI는 동료다</h4>
+      <p>Claude Code + Figma MCP로 레거시 분석, POC 개발, 보고서 작성, 부하 테스트까지 3주 만에 완료했습니다. AI를 도구가 아닌 협업 파트너로 활용하면 1인 PM+개발이 가능합니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ FOOTER ══════ -->
+<div class="foot">
+  <p class="name">김효섭</p>
+  <p>제조DT개발팀 &middot; 2026.04</p>
+</div>
+
+</body>
+</html>
