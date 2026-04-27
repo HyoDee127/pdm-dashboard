@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920">
 <title>PDM 도면배포 시스템 개선 보고서</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap');
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -215,7 +216,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
         <li><strong>백도어 3곳</strong> &mdash; 카톡, EP-DRIVE, 메일로 도면 유출</li>
         <li><strong>5개 부서</strong>가 도면 배포에 고통</li>
         <li>제품기술팀이 <strong>병목 허브</strong> (월 40건, 16시간/월 소요)</li>
-        <li>도면 출력관리 <strong>전담 인력 1인</strong> (일 11시간, 월 242시간 투입)</li>
+        <li>도면 출력관리 <strong>전담 인력 1인</strong> (일 8시간 기준, 도면업무 약 6시간/일)</li>
       </ul>
     </div>
   </div>
@@ -234,35 +235,35 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
         <tr><td class="dt-label">주문품 요청</td><td>비정기 발생</td><td class="dt-num">월평균 5건</td></tr>
         <tr><td class="dt-label">월 총 소요시간</td><td>40건 &times; 24분</td><td class="dt-num">약 16시간/월</td></tr>
       </table>
-      <div class="evidence"><iframe src="img_request.pdf" style="width:100%; height:480px; border:none;"></iframe><div class="evidence-caption">실제 도면배포 요청서 (제품기술팀에 접수되는 양식)</div></div>
+      <div class="evidence"><iframe src="/img_request.pdf" style="width:100%; height:480px; border:none;"></iframe><div class="evidence-caption">실제 도면배포 요청서 (제품기술팀에 접수되는 양식)</div></div>
     </div>
     <div class="prob-card pc2">
       <div class="num">PROBLEM 02</div>
       <h4>EP-DRIVE 백도어</h4>
       <p>비공식 공유폴더에 도면 수동 업로드<br>구버전 파일 방치 &rarr; 오출력 위험<br>보안 이력 추적 불가</p>
-      <div class="evidence"><img src="img_epdrive.jpg" alt="EP-DRIVE 실제 사례" /><div class="evidence-caption">실제 EP-DRIVE 도면 배포 화면</div></div>
+      <div class="evidence"><img src="/img_epdrive.jpg" alt="EP-DRIVE 실제 사례" /><div class="evidence-caption">실제 EP-DRIVE 도면 배포 화면</div></div>
     </div>
     <div class="prob-card pc3">
       <div class="num">PROBLEM 03</div>
       <h4>카톡/메일 도면 전달</h4>
       <p>구매팀 &middot; 생산팀 &middot; 제품기술팀 모두 카톡 사용<br>파일 유출 경로 = 보안 사각지대<br>배포 이력 없음</p>
-      <div class="evidence"><img src="img_kakao.jpg" alt="카톡 도면 전달 실제 사례" /><div class="evidence-caption">실제 카톡 도면 전달 화면 (외부 협력업체)</div></div>
+      <div class="evidence"><img src="/img_kakao.jpg" alt="카톡 도면 전달 실제 사례" /><div class="evidence-caption">실제 카톡 도면 전달 화면 (외부 협력업체)</div></div>
     </div>
     <div class="prob-card pc4">
       <div class="num">PROBLEM 04</div>
       <h4>가공라인 QC 미적용</h4>
       <p>출력도면을 활용한 QC업무 skip (업무 부하)<br>포장처만 검사 &rarr; 품질 리스크 존재</p>
-      <div class="evidence"><img src="img_qc.jpg" alt="현장 QC 실제 사례" /><div class="evidence-caption">도면을 활용한 현장 품질검사 모습</div></div>
+      <div class="evidence"><img src="/img_qc.jpg" alt="현장 QC 실제 사례" /><div class="evidence-caption">도면을 활용한 현장 품질검사 모습</div></div>
     </div>
     <div class="prob-card pc5">
       <div class="num">PROBLEM 05</div>
       <h4>인력 소모</h4>
       <table class="detail-table">
-        <tr><td class="dt-label">도면 출력관리<br>전담 인력</td><td>1인 / 일 11시간 배치 (월 22일)<br>부품규격표 + PDM + NPDM 도면 수동 바인딩</td><td class="dt-num">242시간/월</td></tr>
+        <tr><td class="dt-label">도면 출력관리<br>전담 인력</td><td>1인 / 일 8시간 기준 (월 22일)<br>도면 수작업 약 6시간 + 스티커 부착 등 2시간</td><td class="dt-num">176시간/월</td></tr>
         <tr><td class="dt-label">제품기술팀<br>도면배포</td><td>주문품 담당 1명 + 표준품 담당 1명<br>건당 약 24분, 월 40건 처리</td><td class="dt-num">16시간/월</td></tr>
-        <tr><td class="dt-label">합계</td><td>도면 배포에 투입되는 순수 공수</td><td class="dt-num" style="font-size:15px;">258시간/월</td></tr>
+        <tr><td class="dt-label">합계</td><td>도면 배포에 투입되는 순수 공수</td><td class="dt-num" style="font-size:15px;">192시간/월</td></tr>
       </table>
-      <div class="evidence"><img src="img_internal.jpg" alt="사내협력사 도면 배포" /><div class="evidence-caption">사내협력사 도면 배포 실제 사례</div></div>
+      <div class="evidence"><img src="/img_internal.jpg" alt="사내협력사 도면 배포" /><div class="evidence-caption">사내협력사 도면 배포 실제 사례</div></div>
     </div>
   </div>
 </div>
@@ -446,7 +447,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
   <div class="map-row">
     <div class="map-before"><h4>EP-DRIVE 배포 업무</h4><p>PDM/NPDM 도면 다운 &rarr; EP-DRIVE에 수동 업로드 + 구버전 교체 + 코드별 관리</p></div>
     <div class="map-center"><div class="map-tech">ERP 직접 출력</div><div class="map-arrow-line"></div></div>
-    <div class="map-after"><h4>EP-DRIVE 업무 소멸</h4><p>ERP에서 바로 출력 가능 &rarr; EP-DRIVE 업로드/검색/관리 전부 불필요</p></div>
+    <div class="map-after"><h4>EP-DRIVE 사용 제거</h4><p>도면없음 발생 시 제품기술팀이 NPDM에 도면 등록 &rarr; EP-DRIVE 의존 원인 제거</p></div>
   </div>
   <div class="map-row">
     <div class="map-before"><h4>카톡/메일로 도면 직접 전달</h4><p>3개 팀 모두 카톡으로 협력업체에 도면 전달 (보안 사각지대)</p></div>
@@ -470,9 +471,9 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
       <div class="big-detail">제품기술팀: 월 16시간 &rarr; 40분<br><strong style="color:#3b82f6;">월 15.3시간 회수</strong><br><span style="font-size:12px; color:#94a3b8;">연 약 190만원 (최저시급 기준)</span></div>
     </div>
     <div class="effect-card c-green">
-      <div class="big-num">1명</div>
-      <div class="big-label">인력 절감</div>
-      <div class="big-detail">도면 출력관리 전담 인력 해소<br><strong style="color:#10b981;">월 242시간 &rarr; 0시간</strong><br><span style="font-size:12px; color:#94a3b8;">연 약 4,040만원 (최저시급 기준)</span></div>
+      <div class="big-num">75%</div>
+      <div class="big-label">인력 업무 절감</div>
+      <div class="big-detail">일 8시간 중 도면 수작업 6시간 자동화<br><strong style="color:#10b981;">월 176시간 중 132시간 절감</strong><br><span style="font-size:12px; color:#94a3b8;">연 약 2,200만원 (최저시급 기준)</span></div>
     </div>
     <div class="effect-card c-rose">
       <div class="big-num">3곳</div>
@@ -481,8 +482,8 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
     </div>
   </div>
   <div style="margin-top:24px; padding:20px 32px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); text-align:center;">
-    <span style="font-size:28px; font-weight:900; color:#10b981;">연간 총 절감 효과: 약 4,230만원 / 연 3,086시간</span>
-    <div style="font-size:13px; color:#94a3b8; margin-top:8px;">인력 4,040만원(월 242h) + 업무시간 190만원(월 15.3h) &mdash; 가공라인 QC 확대 등 정성적 효과 별도</div>
+    <span style="font-size:28px; font-weight:900; color:#10b981;">연간 총 절감 효과: 약 2,390만원 / 연 1,768시간</span>
+    <div style="font-size:13px; color:#94a3b8; margin-top:8px;">인력 2,200만원(월 132h 절감) + 업무시간 190만원(월 15.3h) &mdash; 가공라인 QC 확대 등 정성적 효과 별도</div>
   </div>
 </div>
 
@@ -492,12 +493,12 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
   <div class="sample-grid">
     <div class="sample-card">
       <div class="sample-head" style="background:#eff6ff; color:#1d4ed8;">AS-IS: 부품규격표 (도면 없이 단독 출력)</div>
-      <iframe class="sample-embed" src="sample_asis_spec.pdf"></iframe>
+      <iframe class="sample-embed" src="/sample_asis_spec.pdf"></iframe>
       <div class="sample-desc">현재: 부품규격표만 단독 출력 &rarr; 도면은 PDM/NPDM에서 따로 개별 다운 &rarr; 수동 바인딩 필요</div>
     </div>
     <div class="sample-card">
       <div class="sample-head" style="background:#ecfdf5; color:#059669;">TO-BE: 부품규격표 + PDM + NPDM 도면 합본 결과</div>
-      <iframe class="sample-embed" src="sample_merged.pdf"></iframe>
+      <iframe class="sample-embed" src="/sample_merged.pdf"></iframe>
       <div class="sample-desc">개선: 규격표 + PDM도면 + NPDM도면이 자동 교차 합본 + 워터마크 자동 삽입<br>
       <strong>[규격표1] [도면1] [규격표2] [도면2] ...</strong> 순서로 합본 &rarr; 원클릭 인쇄</div>
     </div>
@@ -570,13 +571,13 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
       <h4 style="border-color:#10b981; color:#059669;">생산현장 (포장처 / 가공처)</h4>
       <div class="change-row">
         <div class="change-label label-before">AS-IS</div>
-        <div class="change-text"><strong>포장처:</strong> 도면 출력관리 전담 1인이 일 11시간 수작업 (부품규격표+도면 조합)<br><strong>가공처:</strong> 출력도면을 활용한 QC업무 skip (업무 부하)</div>
+        <div class="change-text"><strong>포장처:</strong> 도면 출력관리 전담 1인, 일 8시간 중 약 6시간 도면 수작업 (부품규격표+도면 조합, 나머지 스티커 부착 등)<br><strong>가공처:</strong> 출력도면을 활용한 QC업무 skip (업무 부하)</div>
       </div>
       <div class="change-row">
         <div class="change-label label-after">TO-BE</div>
-        <div class="change-text"><strong>포장처:</strong> ERP 버튼으로 합본 출력 &rarr; 도면 출력관리 전담 인력 불필요<br><strong>가공처:</strong> 동일 방식으로 도면 배포 <strong>신규 적용</strong> &rarr; QC 범위 확대</div>
+        <div class="change-text"><strong>포장처:</strong> ERP 버튼으로 합본 출력 &rarr; 도면 수작업 6시간 자동화 (75% 절감)<br><strong>가공처:</strong> 동일 방식으로 도면 배포 <strong>신규 적용</strong> &rarr; QC 범위 확대</div>
       </div>
-      <div class="time-save">도면 출력관리 인력 1인 절감 (월 242시간) + 가공라인 QC 커버리지 확대</div>
+      <div class="time-save">도면 출력관리 업무 75% 절감 (월 132시간) + 가공라인 QC 커버리지 확대</div>
     </div>
     <div class="dept-card" style="border-color:#a855f7;">
       <h4 style="border-color:#a855f7; color:#7c3aed;">품질보증팀</h4>
@@ -623,7 +624,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
     <h4 style="font-size:18px; font-weight:700; margin-bottom:8px; color:#1e293b;">최초 설계 아키텍처 (PLM 1.5단계)</h4>
     <p style="font-size:13px; color:#64748b; margin-bottom:20px;">CAD &rarr; PLM &rarr; NPDM 경로가 메인 프로세스로 설계됨. <strong style="color:#dc2626;">IMOS/AutoCAD 기반 도면의 배포 경로가 아키텍처에 존재하지 않음</strong> &mdash; PDM 사용을 줄이는것이 목표였으나 imos/autocad 도면의 배포처가 없어 사용이 지속되고 있음</p>
     <div style="border-radius:12px; overflow:hidden; border:1px solid #e2e8f0;">
-      <img src="img_imos_arch.jpg" alt="PLM 1.5단계 아키텍처" style="width:100%; display:block;" />
+      <img src="/img_imos_arch.jpg" alt="PLM 1.5단계 아키텍처" style="width:100%; display:block;" />
     </div>
     <div style="margin-top:16px; padding:16px 20px; border-radius:10px; background:#fef2f2; border:1px solid #fecaca; font-size:13px; color:#991b1b; line-height:1.8;">
       <strong>문제:</strong> CREO(CAD) 기반 도면은 PLM &rarr; NPDM 경로로 배포 가능하지만,<br>
@@ -698,7 +699,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
       <p style="font-size:13px; color:#64748b; line-height:1.8;">EP-DRIVE 기존 도면, 현장 로컬 PC에 저장된 도면 파일이 남아있음</p>
       <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:#fff; font-size:13px; color:#059669; font-weight:600;">
         <strong>대응:</strong><br>
-        <strong>&bull; EP-DRIVE:</strong> 합본 기능 배포 즉시 백도어 배포 중단 &rarr; 모든 권한 회수 &rarr; 도면 폴더 삭제<br>
+        <strong>&bull; EP-DRIVE:</strong> 도면없음 발생 시 제품기술팀이 NPDM에 도면 등록 &rarr; EP-DRIVE 의존 원인 제거 &rarr; 단계적 권한 회수<br>
         <strong>&bull; 현장 로컬 PC:</strong> 단계적 삭제 진행<br>
         <strong>&bull; 카톡/메일:</strong> 회수 불가하나 리비전 변경 시 자연 무효화 + 워터마크로 정식/비정식 구분
       </div>
@@ -755,7 +756,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
     <a href="https://www.figma.com/board/jKhcVtcKngHbc0IJ0h4aYG" target="_blank" style="flex:1; display:block; padding:20px 28px; border-radius:12px; background:#0f172a; color:#e2e8f0; text-decoration:none; text-align:center; font-size:15px; font-weight:600;">
       AS-IS 도면배포 흐름도 (FigJam) &rarr;
     </a>
-    <a href="index.html" target="_blank" style="flex:1; display:block; padding:20px 28px; border-radius:12px; background:#1e40af; color:#e2e8f0; text-decoration:none; text-align:center; font-size:15px; font-weight:600;">
+    <a href="/deliverable.html" target="_blank" style="flex:1; display:block; padding:20px 28px; border-radius:12px; background:#1e40af; color:#e2e8f0; text-decoration:none; text-align:center; font-size:15px; font-weight:600;">
       프로젝트 산출물 대시보드 &rarr;
     </a>
   </div>
@@ -782,7 +783,7 @@ body { font-family:'Noto Sans KR',sans-serif; background:#f8fafc; color:#1e293b;
       <table style="width:100%; font-size:14px; border-collapse:collapse;">
         <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; width:160px; border-bottom:1px solid #f1f5f9;">표준품 요청 건수</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">제품기술팀 실제 처리 이력 (12~2월)</td></tr>
         <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">건당 소요시간</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">현업 인터뷰 + 업무 프로세스 분석</td></tr>
-        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">도면 출력관리 인력 근무시간</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">현장 소사장 인터뷰 (일 11시간)</td></tr>
+        <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">도면 출력관리 인력 근무시간</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">현장 소사장 인터뷰 (일 8시간 기준, 도면업무 약 6시간)</td></tr>
         <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b; border-bottom:1px solid #f1f5f9;">부하 테스트 수치</td><td style="padding:8px 10px; border-bottom:1px solid #f1f5f9;">개발환경 실측 (2026.04.22)</td></tr>
         <tr><td style="padding:8px 10px; font-weight:600; color:#1e293b;">카톡 전달 증거</td><td style="padding:8px 10px;">구매/생산/제품기술팀 카톡 캡처</td></tr>
       </table>
